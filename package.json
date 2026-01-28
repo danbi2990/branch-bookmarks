@@ -1,0 +1,172 @@
+{
+  "name": "bookmark-extension",
+  "displayName": "Bookmark Extension",
+  "description": "Bookmark specific lines in your code files for easy navigation with Git branch support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "bookmark.add",
+        "title": "Add Bookmark",
+        "category": "Bookmark",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "bookmark.remove",
+        "title": "Remove Bookmark",
+        "category": "Bookmark",
+        "icon": "$(close)"
+      },
+      {
+        "command": "bookmark.toggle",
+        "title": "Toggle Bookmark",
+        "category": "Bookmark",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "bookmark.listQuickPick",
+        "title": "List Bookmarks (Quick Pick)",
+        "category": "Bookmark",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "bookmark.changeSortOrder",
+        "title": "Change Sort Order",
+        "category": "Bookmark",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "bookmark.clearAll",
+        "title": "Clear All Bookmarks",
+        "category": "Bookmark",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "bookmark.refresh",
+        "title": "Refresh Bookmarks",
+        "category": "Bookmark",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "bookmark.goToBookmark",
+        "title": "Go to Bookmark",
+        "category": "Bookmark"
+      },
+      {
+        "command": "bookmark.removeFromView",
+        "title": "Remove Bookmark",
+        "category": "Bookmark",
+        "icon": "$(close)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "bookmark.toggle",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "bookmark.listQuickPick",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "bookmarkView",
+          "name": "Bookmarks",
+          "icon": "$(bookmark)",
+          "contextualTitle": "Bookmarks"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "bookmark.changeSortOrder",
+          "when": "view == bookmarkView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "bookmark.refresh",
+          "when": "view == bookmarkView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "bookmark.clearAll",
+          "when": "view == bookmarkView",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "bookmark.removeFromView",
+          "when": "view == bookmarkView && viewItem == bookmark",
+          "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "bookmark.toggle",
+          "group": "navigation",
+          "when": "editorTextFocus"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Bookmark Extension",
+      "properties": {
+        "bookmark.showOtherBranchBookmarks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show bookmarks from other Git branches with a dimmed icon"
+        },
+        "bookmark.defaultSortOrder": {
+          "type": "string",
+          "enum": [
+            "lineNumber",
+            "dateAdded"
+          ],
+          "default": "lineNumber",
+          "description": "Default sort order for bookmarks"
+        },
+        "bookmark.gutterIconColor": {
+          "type": "string",
+          "default": "#007ACC",
+          "description": "Color for the bookmark gutter icon"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8"
+  }
+}
