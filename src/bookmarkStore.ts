@@ -233,6 +233,8 @@ export class BookmarkStore {
 		}
 
 		let modified = false;
+		const bookmarksToRemove: string[] = [];
+
 		for (const change of changes) {
 			const startLine = change.range.start.line;
 			const endLine = change.range.end.line;
@@ -240,9 +242,15 @@ export class BookmarkStore {
 			const linesAdded = change.text.split("\n").length - 1;
 			const lineDelta = linesAdded - linesRemoved;
 
-			if (lineDelta !== 0) {
-				for (const bookmark of bookmarkList) {
+			for (const bookmark of bookmarkList) {
+				// Skip bookmarks already marked for removal
+				if (bookmarksToRemove.includes(bookmark.id)) {
+					continue;
+				}
+
+				if (lineDelta !== 0 || linesRemoved > 0) {
 					if (bookmark.lineNumber > endLine) {
+						// Bookmark is after the change - adjust by line delta
 						bookmark.lineNumber += lineDelta;
 						modified = true;
 					} else if (
@@ -250,12 +258,24 @@ export class BookmarkStore {
 						bookmark.lineNumber <= endLine &&
 						linesRemoved > 0
 					) {
-						// Bookmark is within deleted range - move to start of change
-						bookmark.lineNumber = startLine;
+						// Bookmark is within deleted range - remove the bookmark
+						bookmarksToRemove.push(bookmark.id);
 						modified = true;
 					}
 				}
 			}
+		}
+
+		// Remove bookmarks that were in deleted lines
+		for (const id of bookmarksToRemove) {
+			const index = bookmarkList.findIndex((b) => b.id === id);
+			if (index !== -1) {
+				bookmarkList.splice(index, 1);
+			}
+		}
+
+		if (bookmarkList.length === 0) {
+			this.bookmarks.delete(key);
 		}
 
 		if (modified) {
