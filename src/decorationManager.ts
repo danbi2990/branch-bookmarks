@@ -108,12 +108,22 @@ export class DecorationManager {
 		);
 	}
 
+	clearDecorations(editor: vscode.TextEditor): void {
+		editor.setDecorations(this.currentBranchDecorationType, []);
+	}
+
 	/**
 	 * Refresh decorations for all visible editors
 	 */
 	refreshAllDecorations(): void {
 		for (const editor of vscode.window.visibleTextEditors) {
 			this.updateDecorations(editor);
+		}
+	}
+
+	clearAllDecorations(): void {
+		for (const editor of vscode.window.visibleTextEditors) {
+			this.clearDecorations(editor);
 		}
 	}
 

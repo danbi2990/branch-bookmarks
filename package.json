@@ -141,6 +141,12 @@
           "type": "string",
           "default": "#007ACC",
           "description": "Color for the bookmark gutter icon"
+        },
+        "bookmark.branchTransitionDelayMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 0,
+          "description": "Delay in milliseconds to suspend line tracking after a Git branch change"
         }
       }
     }

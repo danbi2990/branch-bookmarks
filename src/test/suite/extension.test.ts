@@ -54,15 +54,24 @@ suite("Bookmark Extension Integration", () => {
 
 	setup(async () => {
 		const api = await getApi();
+		api.clearBranchTransitionForTest();
 		await api.getBookmarkStore().clearAll();
 		await vscode.workspace
 			.getConfiguration("bookmark")
 			.update("defaultSortOrder", "lineNumber", vscode.ConfigurationTarget.Workspace);
+		await vscode.workspace
+			.getConfiguration("bookmark")
+			.update(
+				"branchTransitionDelayMs",
+				500,
+				vscode.ConfigurationTarget.Workspace,
+			);
 		await api.whenIdle();
 	});
 
 	teardown(async () => {
 		const api = await getApi();
+		api.clearBranchTransitionForTest();
 		await api.getBookmarkStore().clearAll();
 		await api.whenIdle();
 
@@ -115,6 +124,74 @@ suite("Bookmark Extension Integration", () => {
 		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
 		assert.strictEqual(bookmarks.length, 1);
 		assert.strictEqual(bookmarks[0].lineNumber, originalLine + 3);
+	});
+
+	test("line tracking is suppressed during branch transition", async () => {
+		const api = await getApi();
+		const editor = await openFixtureEditor(
+			"branch-transition-suppress.ts",
+			buildLines(30),
+		);
+		const filePath = editor.document.uri.fsPath;
+		const bookmarkedLine = 12;
+
+		await addBookmarkAtLine(editor, bookmarkedLine);
+		await api.whenIdle();
+
+		api.beginBranchTransitionForTest(300);
+		await editor.edit((builder) => {
+			builder.insert(new vscode.Position(0, 0), "shift-1\nshift-2\n");
+		});
+		await api.whenIdle();
+
+		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine);
+		api.clearBranchTransitionForTest();
+	});
+
+	test("configured branch transition delay is used when test API duration is omitted", async () => {
+		const api = await getApi();
+		const editor = await openFixtureEditor(
+			"branch-transition-configured-delay.ts",
+			buildLines(30),
+		);
+		const filePath = editor.document.uri.fsPath;
+		const bookmarkedLine = 10;
+
+		await addBookmarkAtLine(editor, bookmarkedLine);
+		await api.whenIdle();
+
+		await vscode.workspace
+			.getConfiguration("bookmark")
+			.update(
+				"branchTransitionDelayMs",
+				120,
+				vscode.ConfigurationTarget.Workspace,
+			);
+
+		api.beginBranchTransitionForTest();
+		await editor.edit((builder) => {
+			builder.insert(new vscode.Position(0, 0), "suppressed-shift\n");
+		});
+		await api.whenIdle();
+
+		let bookmarks = api
+			.getBookmarkStore()
+			.getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine);
+
+		await sleep(180);
+		await editor.edit((builder) => {
+			builder.insert(new vscode.Position(0, 0), "tracked-shift\n");
+		});
+		await api.whenIdle();
+
+		bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine + 1);
+		api.clearBranchTransitionForTest();
 	});
 
 	test("bookmark is removed when deleted range includes bookmarked line", async () => {

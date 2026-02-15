@@ -12,11 +12,16 @@ let gitService: GitService;
 let treeDataProvider: BookmarkTreeDataProvider;
 let decorationManager: DecorationManager;
 const pendingOperations = new Set<Promise<unknown>>();
+const DEFAULT_BRANCH_TRANSITION_DELAY_MS = 500;
+let manualSuspendUntil = 0;
+let manualSuspendTimer: ReturnType<typeof setTimeout> | undefined;
 
 export interface ExtensionTestApi {
 	getBookmarkStore(): BookmarkStore;
 	createStoreFromStorage(): BookmarkStore;
 	getTreeDataProvider(): BookmarkTreeDataProvider;
+	beginBranchTransitionForTest(durationMs?: number): void;
+	clearBranchTransitionForTest(): void;
 	whenIdle(): Promise<void>;
 }
 
@@ -38,6 +43,50 @@ async function waitForPendingOperations(): Promise<void> {
 	}
 	// Yield one tick so follow-up listeners can finish.
 	await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+function getBranchTransitionDelayMs(): number {
+	const configuredDelay = vscode.workspace
+		.getConfiguration("bookmark")
+		.get<number>(
+			"branchTransitionDelayMs",
+			DEFAULT_BRANCH_TRANSITION_DELAY_MS,
+		);
+	if (
+		typeof configuredDelay !== "number" ||
+		!Number.isFinite(configuredDelay)
+	) {
+		return DEFAULT_BRANCH_TRANSITION_DELAY_MS;
+	}
+	return Math.max(0, Math.floor(configuredDelay));
+}
+
+function beginManualLineTrackingSuspension(durationMs: number): void {
+	const safeDurationMs = Math.max(0, Math.floor(durationMs));
+	manualSuspendUntil = Date.now() + safeDurationMs;
+	decorationManager.clearAllDecorations();
+
+	if (manualSuspendTimer) {
+		clearTimeout(manualSuspendTimer);
+	}
+	manualSuspendTimer = setTimeout(() => {
+		manualSuspendUntil = 0;
+		manualSuspendTimer = undefined;
+		treeDataProvider.refresh();
+		decorationManager.refreshAllDecorations();
+	}, safeDurationMs);
+}
+
+function isLineTrackingSuspended(): boolean {
+	return Date.now() < manualSuspendUntil;
+}
+
+function clearLineTrackingSuspension(): void {
+	if (manualSuspendTimer) {
+		clearTimeout(manualSuspendTimer);
+		manualSuspendTimer = undefined;
+	}
+	manualSuspendUntil = 0;
 }
 
 export function activate(
@@ -94,6 +143,9 @@ export function activate(
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument(
 		(e) => {
 			if (e.contentChanges.length > 0) {
+				if (isLineTrackingSuspended()) {
+					return;
+				}
 				const filePath = e.document.uri.fsPath;
 				const branchName = gitService.getCurrentBranch();
 				void trackPendingOperation(
@@ -109,8 +161,8 @@ export function activate(
 
 	// Branch change listener
 	const branchChangeListener = gitService.onDidChangeBranch(() => {
+		beginManualLineTrackingSuspension(getBranchTransitionDelayMs());
 		treeDataProvider.refresh();
-		decorationManager.refreshAllDecorations();
 	});
 
 	// Auto-cleanup on activation
@@ -123,6 +175,9 @@ export function activate(
 		fileWatcher,
 		documentChangeListener,
 		branchChangeListener,
+		new vscode.Disposable(() => {
+			clearLineTrackingSuspension();
+		}),
 		gitService,
 		decorationManager,
 	);
@@ -131,6 +186,12 @@ export function activate(
 		getBookmarkStore: () => bookmarkStore,
 		createStoreFromStorage: () => new BookmarkStore(context),
 		getTreeDataProvider: () => treeDataProvider,
+		beginBranchTransitionForTest: (durationMs?: number) => {
+			beginManualLineTrackingSuspension(
+				durationMs ?? getBranchTransitionDelayMs(),
+			);
+		},
+		clearBranchTransitionForTest: clearLineTrackingSuspension,
 		whenIdle: waitForPendingOperations,
 	};
 }
