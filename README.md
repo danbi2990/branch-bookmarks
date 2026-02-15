@@ -18,7 +18,7 @@ A powerful bookmark extension that allows you to bookmark specific lines in your
 ### Keyboard Shortcuts
 
 | Command | Windows/Linux | macOS |
-|---------|--------------|-------|
+| --- | --- | --- |
 | Toggle Bookmark | `Ctrl+Alt+K` | `Cmd+Alt+K` |
 | List Bookmarks (Quick Pick) | `Ctrl+Alt+L` | `Cmd+Alt+L` |
 
@@ -46,7 +46,7 @@ The Bookmarks panel appears in the Explorer sidebar. From there you can:
 ## Settings
 
 | Setting | Description | Default |
-|---------|-------------|---------|
+| --- | --- | --- |
 | `bookmark.showOtherBranchBookmarks` | Show bookmarks from other Git branches | `true` |
 | `bookmark.defaultSortOrder` | Default sort order (`lineNumber` or `dateAdded`) | `lineNumber` |
 | `bookmark.gutterIconColor` | Color for bookmark gutter icon | `#007ACC` |
@@ -66,9 +66,22 @@ Press `F5` in VS Code to launch the Extension Development Host.
 
 ### Testing
 
+This extension uses VS Code integration tests with `@vscode/test-cli` and `@vscode/test-electron`.
+The test runner is configured in `.vscode-test.js` and opens the fixture workspace at `src/test/fixture/workspace`.
+
 ```bash
 npm test
 ```
+
+What the current integration tests cover:
+
+- Toggle behavior (`bookmark.toggle`) adds and removes bookmarks at the cursor line
+- Line tracking behavior shifts bookmark line numbers after text is inserted above a bookmark
+
+Notes:
+
+- On first run, the test runner may download a VS Code test binary into `.vscode-test/`
+- Tests assert against bookmark store state (model), not editor decoration UI
 
 ## License
 
