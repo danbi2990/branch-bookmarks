@@ -15,6 +15,8 @@ const pendingOperations = new Set<Promise<unknown>>();
 
 export interface ExtensionTestApi {
 	getBookmarkStore(): BookmarkStore;
+	createStoreFromStorage(): BookmarkStore;
+	getTreeDataProvider(): BookmarkTreeDataProvider;
 	whenIdle(): Promise<void>;
 }
 
@@ -127,6 +129,8 @@ export function activate(
 
 	return {
 		getBookmarkStore: () => bookmarkStore,
+		createStoreFromStorage: () => new BookmarkStore(context),
+		getTreeDataProvider: () => treeDataProvider,
 		whenIdle: waitForPendingOperations,
 	};
 }
