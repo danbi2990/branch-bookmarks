@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { BookmarkStore } from "./bookmarkStore";
 import { GitService } from "./gitService";
-import { Bookmark, SortOrder } from "./types";
+import { Bookmark } from "./types";
 
 /**
  * Tree item representing a file with bookmarks
@@ -71,32 +71,13 @@ export class BookmarkTreeDataProvider
 	>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-	private sortOrder: SortOrder = "lineNumber";
-
 	constructor(
 		private bookmarkStore: BookmarkStore,
 		private gitService: GitService,
-	) {
-		// Load sort order from settings
-		const config = vscode.workspace.getConfiguration("bookmark");
-		this.sortOrder = config.get<SortOrder>("defaultSortOrder", "lineNumber");
-	}
+	) {}
 
 	refresh(): void {
 		this._onDidChangeTreeData.fire();
-	}
-
-	setSortOrder(order: SortOrder): void {
-		this.sortOrder = order;
-		// Save to settings
-		vscode.workspace
-			.getConfiguration("bookmark")
-			.update("defaultSortOrder", order, vscode.ConfigurationTarget.Workspace);
-		this.refresh();
-	}
-
-	getSortOrder(): SortOrder {
-		return this.sortOrder;
 	}
 
 	getTreeItem(element: TreeItem): vscode.TreeItem {
@@ -135,8 +116,8 @@ export class BookmarkTreeDataProvider
 				currentBranch,
 			);
 
-			// Sort bookmarks
-			bookmarks = this.bookmarkStore.sortBookmarks(bookmarks, this.sortOrder);
+			// Sidebar order is fixed by line number.
+			bookmarks = this.bookmarkStore.sortBookmarks(bookmarks, "lineNumber");
 
 			return bookmarks.map((b) => new BookmarkTreeItem(b, true));
 		}

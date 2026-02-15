@@ -30,7 +30,6 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - `Bookmark: Toggle Bookmark` - Toggle bookmark at current line
 - `Bookmark: List Bookmarks (Quick Pick)` - Show all bookmarks in a quick pick menu
 - `Bookmark: Focus Bookmarks Sidebar` - Move focus to the Bookmarks sidebar view
-- `Bookmark: Change Sort Order` - Change how bookmarks are sorted
 - `Bookmark: Clear All Bookmarks` - Remove all bookmarks
 - `Bookmark: Refresh Bookmarks` - Refresh the bookmark view
 
@@ -41,13 +40,11 @@ The Bookmarks panel appears in the Explorer sidebar. From there you can:
 - View all bookmarks grouped by file
 - Click a bookmark to navigate to it
 - Remove bookmarks using the inline button
-- Change sort order using the title bar button
 
 ## Settings
 
 | Setting | Description | Default |
 | --- | --- | --- |
-| `bookmark.defaultSortOrder` | Default sort order (`lineNumber` or `dateAdded`) | `lineNumber` |
 | `bookmark.gutterIconColor` | Color for bookmark gutter icon | `#007ACC` |
 | `bookmark.branchTransitionDelayMs` | Line-tracking suspend time after Git branch changes (ms) | `500` |
 

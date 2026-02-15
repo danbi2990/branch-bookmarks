@@ -34,12 +34,6 @@
         "icon": "$(list-tree)"
       },
       {
-        "command": "bookmark.changeSortOrder",
-        "title": "Change Sort Order",
-        "category": "Bookmark",
-        "icon": "$(sort-precedence)"
-      },
-      {
         "command": "bookmark.clearAll",
         "title": "Clear All Bookmarks",
         "category": "Bookmark",
@@ -94,19 +88,14 @@
     "menus": {
       "view/title": [
         {
-          "command": "bookmark.changeSortOrder",
+          "command": "bookmark.refresh",
           "when": "view == bookmarkView",
           "group": "navigation@1"
         },
         {
-          "command": "bookmark.refresh",
-          "when": "view == bookmarkView",
-          "group": "navigation@2"
-        },
-        {
           "command": "bookmark.clearAll",
           "when": "view == bookmarkView",
-          "group": "navigation@3"
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -127,15 +116,6 @@
     "configuration": {
       "title": "Bookmark Extension",
       "properties": {
-        "bookmark.defaultSortOrder": {
-          "type": "string",
-          "enum": [
-            "lineNumber",
-            "dateAdded"
-          ],
-          "default": "lineNumber",
-          "description": "Default sort order for bookmarks"
-        },
         "bookmark.gutterIconColor": {
           "type": "string",
           "default": "#007ACC",

@@ -5,7 +5,7 @@ import { GitService } from "./gitService";
 import { BookmarkTreeDataProvider } from "./bookmarkTreeView";
 import type { BookmarkTreeItem } from "./bookmarkTreeView";
 import { DecorationManager } from "./decorationManager";
-import type { Bookmark, SortOrder } from "./types";
+import type { Bookmark } from "./types";
 
 let bookmarkStore: BookmarkStore;
 let gitService: GitService;
@@ -113,10 +113,6 @@ export function activate(
 		vscode.commands.registerCommand(
 			"bookmark.focusSidebar",
 			focusBookmarkSidebar,
-		),
-		vscode.commands.registerCommand(
-			"bookmark.changeSortOrder",
-			changeSortOrder,
 		),
 		vscode.commands.registerCommand("bookmark.clearAll", clearAllBookmarks),
 		vscode.commands.registerCommand("bookmark.refresh", () =>
@@ -234,8 +230,7 @@ async function showQuickPick(): Promise<void> {
 		return;
 	}
 
-	const sortOrder = treeDataProvider.getSortOrder();
-	const sortedBookmarks = bookmarkStore.sortBookmarks(bookmarks, sortOrder);
+	const sortedBookmarks = bookmarkStore.sortBookmarks(bookmarks, "dateAdded");
 
 	interface BookmarkQuickPickItem extends vscode.QuickPickItem {
 		bookmark: Bookmark;
@@ -266,37 +261,6 @@ async function showQuickPick(): Promise<void> {
 
 async function focusBookmarkSidebar(): Promise<void> {
 	await vscode.commands.executeCommand("bookmarkView.focus");
-}
-
-async function changeSortOrder(): Promise<void> {
-	interface SortOptionItem extends vscode.QuickPickItem {
-		value: SortOrder;
-	}
-
-	const currentSort = treeDataProvider.getSortOrder();
-	const options: SortOptionItem[] = [
-		{
-			label: "$(list-ordered) Line Number",
-			description: currentSort === "lineNumber" ? "(current)" : "",
-			value: "lineNumber",
-		},
-		{
-			label: "$(calendar) Date Added",
-			description: currentSort === "dateAdded" ? "(current)" : "",
-			value: "dateAdded",
-		},
-	];
-
-	const selected = await vscode.window.showQuickPick(options, {
-		placeHolder: "Sort bookmarks by...",
-	});
-
-	if (selected) {
-		treeDataProvider.setSortOrder(selected.value);
-		vscode.window.showInformationMessage(
-			`Bookmarks sorted by ${selected.value === "lineNumber" ? "line number" : "date added"}`,
-		);
-	}
 }
 
 async function clearAllBookmarks(): Promise<void> {

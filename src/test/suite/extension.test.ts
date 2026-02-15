@@ -58,9 +58,6 @@ suite("Bookmark Extension Integration", () => {
 		await api.getBookmarkStore().clearAll();
 		await vscode.workspace
 			.getConfiguration("bookmark")
-			.update("defaultSortOrder", "lineNumber", vscode.ConfigurationTarget.Workspace);
-		await vscode.workspace
-			.getConfiguration("bookmark")
 			.update(
 				"branchTransitionDelayMs",
 				500,
@@ -600,7 +597,7 @@ suite("Bookmark Extension Integration", () => {
 		);
 	});
 
-	test("tree provider returns file and bookmark order for both sort modes", async () => {
+	test("tree provider returns bookmarks ordered by line number", async () => {
 		const api = await getApi();
 		const provider = api.getTreeDataProvider();
 		const store = api.getBookmarkStore();
@@ -620,16 +617,9 @@ suite("Bookmark Extension Integration", () => {
 		const rootLabels = rootItems.map((item) => String(item.label));
 		assert.deepStrictEqual(rootLabels, ["tree-a.ts", "tree-b.ts"]);
 
-		provider.setSortOrder("lineNumber");
 		const lineChildren = (await provider.getChildren(rootItems[0] as never)).map(
 			(item) => String(item.label),
 		);
 		assert.deepStrictEqual(lineChildren, ["Line 3", "Line 9"]);
-
-		provider.setSortOrder("dateAdded");
-		const dateChildren = (await provider.getChildren(rootItems[0] as never)).map(
-			(item) => String(item.label),
-		);
-		assert.deepStrictEqual(dateChildren, ["Line 3", "Line 9"]);
 	});
 });
