@@ -128,11 +128,6 @@
     "configuration": {
       "title": "Bookmark Extension",
       "properties": {
-        "bookmark.showOtherBranchBookmarks": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show bookmarks from other Git branches with a dimmed icon"
-        },
         "bookmark.defaultSortOrder": {
           "type": "string",
           "enum": [

@@ -7,7 +7,6 @@ import { GitService } from "./gitService";
  */
 export class DecorationManager {
 	private currentBranchDecorationType: vscode.TextEditorDecorationType;
-	private otherBranchDecorationType: vscode.TextEditorDecorationType;
 	private disposables: vscode.Disposable[] = [];
 
 	constructor(
@@ -18,12 +17,6 @@ export class DecorationManager {
 		this.currentBranchDecorationType =
 			vscode.window.createTextEditorDecorationType({
 				gutterIconPath: this.createBookmarkIcon("#007ACC"),
-				gutterIconSize: "contain",
-			});
-
-		this.otherBranchDecorationType =
-			vscode.window.createTextEditorDecorationType({
-				gutterIconPath: this.createBookmarkIcon("#888888"),
 				gutterIconSize: "contain",
 			});
 
@@ -79,18 +72,14 @@ export class DecorationManager {
 	updateDecorations(editor: vscode.TextEditor): void {
 		const filePath = editor.document.uri.fsPath;
 		const currentBranch = this.gitService.getCurrentBranch();
-		const showOtherBranches = vscode.workspace
-			.getConfiguration("bookmark")
-			.get<boolean>("showOtherBranchBookmarks", true);
-
-		// Get bookmarks for current file
-		const allBookmarks =
-			this.bookmarkStore.getBookmarksForFileAllBranches(filePath);
+		const currentBranchBookmarks = this.bookmarkStore.getBookmarksForFile(
+			filePath,
+			currentBranch,
+		);
 
 		const currentBranchRanges: vscode.DecorationOptions[] = [];
-		const otherBranchRanges: vscode.DecorationOptions[] = [];
 
-		for (const bookmark of allBookmarks) {
+		for (const bookmark of currentBranchBookmarks) {
 			// Validate line number
 			if (bookmark.lineNumber >= editor.document.lineCount) {
 				continue;
@@ -110,18 +99,13 @@ export class DecorationManager {
 				),
 			};
 
-			if (bookmark.branchName === currentBranch) {
-				currentBranchRanges.push(decoration);
-			} else if (showOtherBranches) {
-				otherBranchRanges.push(decoration);
-			}
+			currentBranchRanges.push(decoration);
 		}
 
 		editor.setDecorations(
 			this.currentBranchDecorationType,
 			currentBranchRanges,
 		);
-		editor.setDecorations(this.otherBranchDecorationType, otherBranchRanges);
 	}
 
 	/**
@@ -135,7 +119,6 @@ export class DecorationManager {
 
 	dispose(): void {
 		this.currentBranchDecorationType.dispose();
-		this.otherBranchDecorationType.dispose();
 		for (const disposable of this.disposables) {
 			disposable.dispose();
 		}

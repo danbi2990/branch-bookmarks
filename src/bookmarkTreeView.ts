@@ -105,15 +105,11 @@ export class BookmarkTreeDataProvider
 
 	async getChildren(element?: TreeItem): Promise<TreeItem[]> {
 		const currentBranch = this.gitService.getCurrentBranch();
-		const showOtherBranches = vscode.workspace
-			.getConfiguration("bookmark")
-			.get<boolean>("showOtherBranchBookmarks", true);
 
 		if (!element) {
 			// Root level: return files
-			const allBookmarks = showOtherBranches
-				? this.bookmarkStore.getAllBookmarks()
-				: this.bookmarkStore.getAllBookmarksForBranch(currentBranch);
+			const allBookmarks =
+				this.bookmarkStore.getAllBookmarksForBranch(currentBranch);
 
 			// Group by file
 			const fileMap = new Map<string, Bookmark[]>();
@@ -134,19 +130,15 @@ export class BookmarkTreeDataProvider
 
 		if (element instanceof FileTreeItem) {
 			// Return bookmarks for this file
-			let bookmarks = showOtherBranches
-				? this.bookmarkStore.getBookmarksForFileAllBranches(element.filePath)
-				: this.bookmarkStore.getBookmarksForFile(
-						element.filePath,
-						currentBranch,
-					);
+			let bookmarks = this.bookmarkStore.getBookmarksForFile(
+				element.filePath,
+				currentBranch,
+			);
 
 			// Sort bookmarks
 			bookmarks = this.bookmarkStore.sortBookmarks(bookmarks, this.sortOrder);
 
-			return bookmarks.map(
-				(b) => new BookmarkTreeItem(b, b.branchName === currentBranch),
-			);
+			return bookmarks.map((b) => new BookmarkTreeItem(b, true));
 		}
 
 		return [];

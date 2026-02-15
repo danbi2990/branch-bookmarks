@@ -47,7 +47,6 @@ The Bookmarks panel appears in the Explorer sidebar. From there you can:
 
 | Setting | Description | Default |
 | --- | --- | --- |
-| `bookmark.showOtherBranchBookmarks` | Show bookmarks from other Git branches | `true` |
 | `bookmark.defaultSortOrder` | Default sort order (`lineNumber` or `dateAdded`) | `lineNumber` |
 | `bookmark.gutterIconColor` | Color for bookmark gutter icon | `#007ACC` |
 

@@ -193,13 +193,7 @@ async function toggleBookmark(): Promise<void> {
 
 async function showQuickPick(): Promise<void> {
 	const currentBranch = gitService.getCurrentBranch();
-	const showOtherBranches = vscode.workspace
-		.getConfiguration("bookmark")
-		.get<boolean>("showOtherBranchBookmarks", true);
-
-	const bookmarks = showOtherBranches
-		? bookmarkStore.getAllBookmarks()
-		: bookmarkStore.getAllBookmarksForBranch(currentBranch);
+	const bookmarks = bookmarkStore.getAllBookmarksForBranch(currentBranch);
 
 	if (bookmarks.length === 0) {
 		vscode.window.showInformationMessage("No bookmarks found");
@@ -216,11 +210,9 @@ async function showQuickPick(): Promise<void> {
 	const items: BookmarkQuickPickItem[] = sortedBookmarks.map((b) => {
 		const fileName = path.basename(b.filePath);
 		const lineNum = b.lineNumber + 1;
-		const branchIndicator =
-			b.branchName === currentBranch ? "" : ` [${b.branchName}]`;
 
 		return {
-			label: `$(bookmark) ${fileName}:${lineNum}${branchIndicator}`,
+			label: `$(bookmark) ${fileName}:${lineNum}`,
 			description: b.lineText?.trim().substring(0, 60) || "",
 			detail: b.filePath,
 			bookmark: b,

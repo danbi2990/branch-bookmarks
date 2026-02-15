@@ -58,13 +58,6 @@ suite("Bookmark Extension Integration", () => {
 		await vscode.workspace
 			.getConfiguration("bookmark")
 			.update("defaultSortOrder", "lineNumber", vscode.ConfigurationTarget.Workspace);
-		await vscode.workspace
-			.getConfiguration("bookmark")
-			.update(
-				"showOtherBranchBookmarks",
-				true,
-				vscode.ConfigurationTarget.Workspace,
-			);
 		await api.whenIdle();
 	});
 
@@ -288,6 +281,52 @@ suite("Bookmark Extension Integration", () => {
 		assert.strictEqual(store.getBookmarksForFile(filePath, "branch-B").length, 1);
 		assert.strictEqual(store.getAllBookmarksForBranch("branch-A").length, 1);
 		assert.strictEqual(store.getAllBookmarksForBranch("branch-B").length, 1);
+	});
+
+	test("tree provider only includes current-branch bookmarks", async () => {
+		const api = await getApi();
+		const provider = api.getTreeDataProvider();
+		const store = api.getBookmarkStore();
+		const editorCurrent = await openFixtureEditor(
+			"current-branch-only-view.ts",
+			buildLines(12, "cur"),
+		);
+		await addBookmarkAtLine(editorCurrent, 1);
+		await api.whenIdle();
+
+		const editorOther = await openFixtureEditor(
+			"other-branch-hidden.ts",
+			buildLines(8, "oth"),
+		);
+		const currentPath = editorCurrent.document.uri.fsPath;
+		const otherPath = editorOther.document.uri.fsPath;
+
+		const currentBranchBookmark =
+			store.getBookmarksForFileAllBranches(currentPath)[0];
+		assert.ok(currentBranchBookmark, "current branch bookmark should exist");
+		const currentBranch = currentBranchBookmark.branchName;
+		const otherBranch = `${currentBranch}-other`;
+
+		await store.add(currentPath, 5, otherBranch, "cur-6");
+		await store.add(otherPath, 2, otherBranch, "oth-3");
+		await api.whenIdle();
+
+		const rootItems = (await provider.getChildren()) as vscode.TreeItem[];
+		const rootLabels = rootItems.map((item) => String(item.label));
+		assert.ok(rootLabels.includes("current-branch-only-view.ts"));
+		assert.ok(!rootLabels.includes("other-branch-hidden.ts"));
+
+		const currentFileItem = rootItems.find(
+			(item) => String(item.label) === "current-branch-only-view.ts",
+		);
+		assert.ok(currentFileItem, "current branch file should be visible");
+
+		const children = (await provider.getChildren(
+			currentFileItem as never,
+		)) as Array<{ bookmark: { branchName: string; lineNumber: number } }>;
+		assert.strictEqual(children.length, 1);
+		assert.strictEqual(children[0].bookmark.branchName, currentBranch);
+		assert.strictEqual(children[0].bookmark.lineNumber, 1);
 	});
 
 	test("duplicate add does not create duplicates and removeAtLine handles misses", async () => {
