@@ -131,6 +131,55 @@ suite("Bookmark Extension Integration", () => {
 		assert.strictEqual(bookmarks[0].lineNumber, originalLine + 3);
 	});
 
+	test("go to bookmark realigns stale line number using stored line text", async () => {
+		const api = await getApi();
+		const content = [
+			"new-1",
+			"new-2",
+			"header",
+			"const a = 1;",
+			"const important = 42;",
+			"footer",
+		].join("\n");
+		const editor = await openFixtureEditor("go-to-realign-test.ts", content);
+		const filePath = editor.document.uri.fsPath;
+
+		// Create bookmark at the correct line first.
+		await addBookmarkAtLine(editor, 4);
+		await api.whenIdle();
+
+		const store = api.getBookmarkStore();
+		const initialBookmark = store.getBookmarksForFileAllBranches(filePath)[0];
+		assert.ok(initialBookmark, "bookmark should exist before external file update");
+		assert.strictEqual(initialBookmark.lineText, "const important = 42;");
+
+		// Simulate stale line tracking (e.g. missed external update).
+		await store.updateBookmarkLocation(
+			initialBookmark.id,
+			2,
+			initialBookmark.lineText,
+		);
+		const staleBookmark = {
+			...store.getBookmarksForFileAllBranches(filePath)[0],
+		};
+		assert.strictEqual(staleBookmark.lineNumber, 2);
+
+		await vscode.commands.executeCommand("bookmark.goToBookmark", staleBookmark);
+		await api.whenIdle();
+
+		const activeEditor = vscode.window.activeTextEditor;
+		assert.ok(activeEditor, "goToBookmark should open the file");
+		assert.strictEqual(activeEditor.document.uri.fsPath, filePath);
+		assert.strictEqual(activeEditor.selection.active.line, 4);
+
+		const refreshedBookmark = store
+			.getBookmarksForFileAllBranches(filePath)
+			.find((bookmark) => bookmark.id === staleBookmark.id);
+		assert.ok(refreshedBookmark, "bookmark should still exist after realignment");
+		assert.strictEqual(refreshedBookmark?.lineNumber, 4);
+		assert.strictEqual(refreshedBookmark?.lineText, "const important = 42;");
+	});
+
 	test("bookmark at first line shifts when a line is inserted above it", async () => {
 		const api = await getApi();
 		const editor = await openFixtureEditor(

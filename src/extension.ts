@@ -282,13 +282,89 @@ async function clearAllBookmarks(): Promise<void> {
 	}
 }
 
+function normalizeLineForMatch(text: string): string {
+	return text.trim().replace(/\s+/g, " ");
+}
+
+function findBestBookmarkLineMatch(
+	document: vscode.TextDocument,
+	bookmark: Bookmark,
+): number | undefined {
+	if (!bookmark.lineText) {
+		return undefined;
+	}
+
+	const maxLine = document.lineCount - 1;
+	if (maxLine < 0) {
+		return undefined;
+	}
+
+	const rawTarget = bookmark.lineText.trim();
+	const normalizedTarget = normalizeLineForMatch(bookmark.lineText);
+	if (!rawTarget && !normalizedTarget) {
+		return undefined;
+	}
+
+	const preferredLine = Math.max(0, Math.min(bookmark.lineNumber, maxLine));
+	const currentRaw = document.lineAt(preferredLine).text.trim();
+	if (currentRaw === rawTarget) {
+		return preferredLine;
+	}
+
+	const currentNormalized = normalizeLineForMatch(
+		document.lineAt(preferredLine).text,
+	);
+	if (currentNormalized === normalizedTarget && normalizedTarget.length > 0) {
+		return preferredLine;
+	}
+
+	let bestRawLine: number | undefined;
+	let bestRawDistance = Number.POSITIVE_INFINITY;
+	let bestNormalizedLine: number | undefined;
+	let bestNormalizedDistance = Number.POSITIVE_INFINITY;
+
+	for (let line = 0; line <= maxLine; line += 1) {
+		const text = document.lineAt(line).text;
+		const raw = text.trim();
+		const distance = Math.abs(line - bookmark.lineNumber);
+		if (rawTarget.length > 0 && raw === rawTarget && distance < bestRawDistance) {
+			bestRawLine = line;
+			bestRawDistance = distance;
+		}
+
+		if (normalizedTarget.length > 0) {
+			const normalized = normalizeLineForMatch(text);
+			if (
+				normalized === normalizedTarget &&
+				distance < bestNormalizedDistance
+			) {
+				bestNormalizedLine = line;
+				bestNormalizedDistance = distance;
+			}
+		}
+	}
+
+	return bestRawLine ?? bestNormalizedLine;
+}
+
 async function goToBookmark(bookmark: Bookmark): Promise<void> {
 	try {
 		const document = await vscode.workspace.openTextDocument(bookmark.filePath);
 		const editor = await vscode.window.showTextDocument(document);
 
-		const lineNumber = Math.min(bookmark.lineNumber, document.lineCount - 1);
-		const range = new vscode.Range(lineNumber, 0, lineNumber, 0);
+		const fallbackLine = Math.min(bookmark.lineNumber, document.lineCount - 1);
+		const matchedLine = findBestBookmarkLineMatch(document, bookmark);
+		const lineNumber = matchedLine ?? fallbackLine;
+		const safeLineNumber = Math.max(0, lineNumber);
+		const range = new vscode.Range(safeLineNumber, 0, safeLineNumber, 0);
+
+		await bookmarkStore.updateBookmarkLocation(
+			bookmark.id,
+			safeLineNumber,
+			document.lineAt(safeLineNumber).text,
+		);
+		treeDataProvider.refresh();
+		decorationManager.updateDecorations(editor);
 
 		editor.selection = new vscode.Selection(range.start, range.start);
 		editor.revealRange(range, vscode.TextEditorRevealType.InCenter);

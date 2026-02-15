@@ -346,6 +346,36 @@ export class BookmarkStore {
 	}
 
 	/**
+	 * Update a bookmark's line number and preview text
+	 */
+	async updateBookmarkLocation(
+		id: string,
+		lineNumber: number,
+		lineText?: string,
+	): Promise<boolean> {
+		for (const bookmarkList of this.bookmarks.values()) {
+			const bookmark = bookmarkList.find((b) => b.id === id);
+			if (!bookmark) {
+				continue;
+			}
+
+			if (
+				bookmark.lineNumber === lineNumber &&
+				bookmark.lineText === lineText
+			) {
+				return false;
+			}
+
+			bookmark.lineNumber = lineNumber;
+			bookmark.lineText = lineText;
+			await this.save();
+			this._onDidChangeBookmarks.fire();
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Remove bookmarks for files that no longer exist
 	 */
 	async cleanup(): Promise<number> {
