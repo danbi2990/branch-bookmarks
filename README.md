@@ -17,11 +17,11 @@ A powerful bookmark extension that allows you to bookmark specific lines in your
 
 ### Keyboard Shortcuts
 
-| Command | Shortcut |
-| --- | --- |
-| Toggle Bookmark | `F3` |
-| List Bookmarks (Quick Pick) | `Shift+F3` |
-| Focus Bookmarks Sidebar | `Cmd+4` (macOS), `Ctrl+4` (Windows/Linux) |
+| Command | Shortcut | Command ID |
+| --- | --- | --- |
+| Toggle Bookmark | `F3` | `bookmark.toggle` |
+| List Bookmarks (Quick Pick) | `Shift+F3` | `bookmark.listQuickPick` |
+| Focus Bookmarks Sidebar | `Cmd+4` (macOS), `Ctrl+4` (Windows/Linux) | `bookmark.focusSidebar` |
 
 ### Commands
 
