@@ -4,14 +4,14 @@ import * as vscode from "vscode";
 import type { Bookmark } from "../../types";
 import type { ExtensionTestApi } from "../../extension";
 
-suite("Bookmark Extension Integration", () => {
+suite("Branch Bookmarks Integration", () => {
 	const createdFileUris: vscode.Uri[] = [];
 
 	async function getApi(): Promise<ExtensionTestApi> {
 		const extension = vscode.extensions.all.find(
-			(candidate) => candidate.packageJSON.name === "bookmark-extension",
+			(candidate) => candidate.packageJSON.name === "branch-bookmarks",
 		);
-		assert.ok(extension, "bookmark-extension must be installed for tests");
+		assert.ok(extension, "branch-bookmarks must be installed for tests");
 		return (await extension.activate()) as ExtensionTestApi;
 	}
 

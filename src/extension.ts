@@ -93,7 +93,7 @@ function clearLineTrackingSuspension(): void {
 export function activate(
 	context: vscode.ExtensionContext,
 ): ExtensionTestApi {
-	console.log("Bookmark Extension is now active!");
+	console.log("Branch Bookmarks is now active!");
 
 	// Initialize services
 	gitService = new GitService();

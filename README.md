@@ -1,4 +1,4 @@
-# Bookmark Extension for VS Code
+# Branch Bookmarks for VS Code
 
 A powerful bookmark extension that allows you to bookmark specific lines in your code files for easy navigation, with Git branch support.
 

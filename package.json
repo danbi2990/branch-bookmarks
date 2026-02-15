@@ -1,6 +1,6 @@
 {
-  "name": "bookmark-extension",
-  "displayName": "Bookmark Extension",
+  "name": "branch-bookmarks",
+  "displayName": "Branch Bookmarks",
   "description": "Bookmark specific lines in your code files for easy navigation with Git branch support",
   "version": "0.0.1",
   "engines": {
@@ -114,7 +114,7 @@
       ]
     },
     "configuration": {
-      "title": "Bookmark Extension",
+      "title": "Branch Bookmarks",
       "properties": {
         "bookmark.gutterIconColor": {
           "type": "string",
