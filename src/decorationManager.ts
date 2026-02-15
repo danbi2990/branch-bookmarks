@@ -61,7 +61,7 @@ export class DecorationManager {
 	 */
 	private createBookmarkIcon(color: string): vscode.Uri {
 		const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="${color}">
-            <path d="M3 2v12l5-3 5 3V2H3z"/>
+            <path d="M4 2v12l4-2.6 4 2.6V2H4z"/>
         </svg>`;
 		return vscode.Uri.parse(`data:image/svg+xml,${encodeURIComponent(svg)}`);
 	}
