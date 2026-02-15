@@ -6,6 +6,7 @@ import { BookmarkTreeDataProvider } from "./bookmarkTreeView";
 import type { BookmarkTreeItem } from "./bookmarkTreeView";
 import { DecorationManager } from "./decorationManager";
 import type { Bookmark } from "./types";
+import { toDisplayPath } from "./pathDisplay";
 
 let bookmarkStore: BookmarkStore;
 let gitService: GitService;
@@ -239,11 +240,12 @@ async function showQuickPick(): Promise<void> {
 	const items: BookmarkQuickPickItem[] = sortedBookmarks.map((b) => {
 		const fileName = path.basename(b.filePath);
 		const lineNum = b.lineNumber + 1;
+		const displayPath = toDisplayPath(b.filePath);
 
 		return {
 			label: `$(bookmark) ${fileName}:${lineNum}`,
 			description: b.lineText?.trim().substring(0, 60) || "",
-			detail: b.filePath,
+			detail: displayPath,
 			bookmark: b,
 		};
 	});

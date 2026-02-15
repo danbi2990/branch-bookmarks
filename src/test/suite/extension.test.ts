@@ -1,4 +1,5 @@
 import * as assert from "assert";
+import * as path from "path";
 import * as vscode from "vscode";
 import type { Bookmark } from "../../types";
 import type { ExtensionTestApi } from "../../extension";
@@ -31,6 +32,13 @@ suite("Bookmark Extension Integration", () => {
 	): Promise<vscode.TextEditor> {
 		const workspace = vscode.workspace.workspaceFolders?.[0];
 		assert.ok(workspace, "workspace folder is required for integration tests");
+
+		const dirName = path.dirname(fileName);
+		if (dirName !== ".") {
+			await vscode.workspace.fs.createDirectory(
+				vscode.Uri.joinPath(workspace.uri, dirName),
+			);
+		}
 
 		const fileUri = vscode.Uri.joinPath(workspace.uri, fileName);
 		await vscode.workspace.fs.writeFile(fileUri, Buffer.from(content, "utf8"));
@@ -497,6 +505,25 @@ suite("Bookmark Extension Integration", () => {
 		assert.strictEqual(children.length, 1);
 		assert.strictEqual(children[0].bookmark.branchName, currentBranch);
 		assert.strictEqual(children[0].bookmark.lineNumber, 1);
+	});
+
+	test("tree file item shows workspace-relative directory when possible", async () => {
+		const api = await getApi();
+		const provider = api.getTreeDataProvider();
+		const editor = await openFixtureEditor(
+			"nested/folder/relative-path-tree.ts",
+			buildLines(6),
+		);
+
+		await addBookmarkAtLine(editor, 2);
+		await api.whenIdle();
+
+		const rootItems = (await provider.getChildren()) as vscode.TreeItem[];
+		const target = rootItems.find(
+			(item) => String(item.label) === "relative-path-tree.ts",
+		);
+		assert.ok(target, "tree item for nested file should exist");
+		assert.strictEqual(String(target.description), "nested/folder");
 	});
 
 	test("duplicate add does not create duplicates and removeAtLine handles misses", async () => {

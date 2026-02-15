@@ -3,6 +3,7 @@ import * as path from "path";
 import { BookmarkStore } from "./bookmarkStore";
 import { GitService } from "./gitService";
 import { Bookmark } from "./types";
+import { toDisplayPath } from "./pathDisplay";
 
 /**
  * Tree item representing a file with bookmarks
@@ -12,9 +13,11 @@ class FileTreeItem extends vscode.TreeItem {
 		public readonly filePath: string,
 		public readonly bookmarkCount: number,
 	) {
-		super(path.basename(filePath), vscode.TreeItemCollapsibleState.Expanded);
-		this.tooltip = filePath;
-		this.description = path.dirname(filePath);
+		const displayPath = toDisplayPath(filePath);
+		super(path.basename(displayPath), vscode.TreeItemCollapsibleState.Expanded);
+		const displayDir = path.dirname(displayPath);
+		this.tooltip = displayPath;
+		this.description = displayDir === "." ? "" : displayDir;
 		this.iconPath = vscode.ThemeIcon.File;
 		this.contextValue = "file";
 		this.resourceUri = vscode.Uri.file(filePath);
