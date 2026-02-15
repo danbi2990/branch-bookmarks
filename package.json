@@ -28,6 +28,12 @@
         "icon": "$(list-flat)"
       },
       {
+        "command": "bookmark.focusSidebar",
+        "title": "Focus Bookmarks Sidebar",
+        "category": "Bookmark",
+        "icon": "$(list-tree)"
+      },
+      {
         "command": "bookmark.changeSortOrder",
         "title": "Change Sort Order",
         "category": "Bookmark",
@@ -68,6 +74,11 @@
         "command": "bookmark.listQuickPick",
         "key": "shift+f3",
         "mac": "shift+f3"
+      },
+      {
+        "command": "bookmark.focusSidebar",
+        "key": "ctrl+4",
+        "mac": "cmd+4"
       }
     ],
     "views": {

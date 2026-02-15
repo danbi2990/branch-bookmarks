@@ -111,6 +111,10 @@ export function activate(
 		vscode.commands.registerCommand("bookmark.toggle", toggleBookmark),
 		vscode.commands.registerCommand("bookmark.listQuickPick", showQuickPick),
 		vscode.commands.registerCommand(
+			"bookmark.focusSidebar",
+			focusBookmarkSidebar,
+		),
+		vscode.commands.registerCommand(
 			"bookmark.changeSortOrder",
 			changeSortOrder,
 		),
@@ -252,6 +256,10 @@ async function showQuickPick(): Promise<void> {
 	if (selected) {
 		await goToBookmark(selected.bookmark);
 	}
+}
+
+async function focusBookmarkSidebar(): Promise<void> {
+	await vscode.commands.executeCommand("bookmarkView.focus");
 }
 
 async function changeSortOrder(): Promise<void> {

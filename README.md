@@ -21,6 +21,7 @@ A powerful bookmark extension that allows you to bookmark specific lines in your
 | --- | --- |
 | Toggle Bookmark | `F3` |
 | List Bookmarks (Quick Pick) | `Shift+F3` |
+| Focus Bookmarks Sidebar | `Cmd+4` (macOS), `Ctrl+4` (Windows/Linux) |
 
 ### Commands
 
@@ -28,6 +29,7 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 
 - `Bookmark: Toggle Bookmark` - Toggle bookmark at current line
 - `Bookmark: List Bookmarks (Quick Pick)` - Show all bookmarks in a quick pick menu
+- `Bookmark: Focus Bookmarks Sidebar` - Move focus to the Bookmarks sidebar view
 - `Bookmark: Change Sort Order` - Change how bookmarks are sorted
 - `Bookmark: Clear All Bookmarks` - Remove all bookmarks
 - `Bookmark: Refresh Bookmarks` - Refresh the bookmark view
