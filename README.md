@@ -19,8 +19,8 @@ A powerful bookmark extension that allows you to bookmark specific lines in your
 
 | Command | Windows/Linux | macOS |
 | --- | --- | --- |
-| Toggle Bookmark | `Ctrl+Alt+K` | `Cmd+Alt+K` |
-| List Bookmarks (Quick Pick) | `Ctrl+Alt+L` | `Cmd+Alt+L` |
+| Toggle Bookmark | `F3` | `F3` |
+| List Bookmarks (Quick Pick) | `Shift+F3` | `Shift+F3` |
 
 ### Commands
 

@@ -72,14 +72,14 @@
     "keybindings": [
       {
         "command": "bookmark.toggle",
-        "key": "ctrl+alt+k",
-        "mac": "cmd+alt+k",
+        "key": "f3",
+        "mac": "f3",
         "when": "editorTextFocus"
       },
       {
         "command": "bookmark.listQuickPick",
-        "key": "ctrl+alt+l",
-        "mac": "cmd+alt+l"
+        "key": "shift+f3",
+        "mac": "shift+f3"
       }
     ],
     "views": {
