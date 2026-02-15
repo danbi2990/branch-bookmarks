@@ -1,10 +1,32 @@
 import * as vscode from "vscode";
 
+interface GitHead {
+	name?: string;
+}
+
+interface GitRepositoryState {
+	HEAD?: GitHead;
+	onDidChange(listener: () => void): vscode.Disposable;
+}
+
+interface GitRepository {
+	state: GitRepositoryState;
+}
+
+interface GitApi {
+	repositories: GitRepository[];
+	onDidOpenRepository(listener: (repo: GitRepository) => void): vscode.Disposable;
+}
+
+interface GitExtensionExports {
+	getAPI(version: 1): GitApi;
+}
+
 /**
  * Utility class for Git operations
  */
 export class GitService {
-	private gitExtension: vscode.Extension<any> | undefined;
+	private gitExtension: vscode.Extension<GitExtensionExports> | undefined;
 	private _onDidChangeBranch = new vscode.EventEmitter<string>();
 	public readonly onDidChangeBranch = this._onDidChangeBranch.event;
 
@@ -30,18 +52,19 @@ export class GitService {
 			}
 
 			// Listen for new repositories
-			git.onDidOpenRepository((repo: any) => {
+			const onDidOpenRepositoryListener = git.onDidOpenRepository((repo) => {
 				this.setupRepositoryListeners(repo);
 			});
+			this.disposables.push(onDidOpenRepositoryListener);
 		}
 
 		// Initial branch detection
 		await this.updateCurrentBranch();
 	}
 
-	private setupRepositoryListeners(repository: any): void {
+	private setupRepositoryListeners(repository: GitRepository): void {
 		const stateChangeListener = repository.state.onDidChange(() => {
-			this.updateCurrentBranch();
+			void this.updateCurrentBranch();
 		});
 		this.disposables.push(stateChangeListener);
 	}

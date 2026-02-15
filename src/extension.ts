@@ -11,8 +11,36 @@ let bookmarkStore: BookmarkStore;
 let gitService: GitService;
 let treeDataProvider: BookmarkTreeDataProvider;
 let decorationManager: DecorationManager;
+const pendingOperations = new Set<Promise<unknown>>();
 
-export function activate(context: vscode.ExtensionContext) {
+export interface ExtensionTestApi {
+	getBookmarkStore(): BookmarkStore;
+	whenIdle(): Promise<void>;
+}
+
+function trackPendingOperation<T>(promise: Promise<T>): Promise<T> {
+	pendingOperations.add(promise);
+	void promise
+		.catch((error: unknown) => {
+			console.error("Background bookmark operation failed:", error);
+		})
+		.finally(() => {
+			pendingOperations.delete(promise);
+		});
+	return promise;
+}
+
+async function waitForPendingOperations(): Promise<void> {
+	while (pendingOperations.size > 0) {
+		await Promise.allSettled(Array.from(pendingOperations));
+	}
+	// Yield one tick so follow-up listeners can finish.
+	await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+export function activate(
+	context: vscode.ExtensionContext,
+): ExtensionTestApi {
 	console.log("Bookmark Extension is now active!");
 
 	// Initialize services
@@ -46,25 +74,33 @@ export function activate(context: vscode.ExtensionContext) {
 	];
 
 	// File system watcher for renames
-	const fileWatcher = vscode.workspace.onDidRenameFiles(async (e) => {
-		for (const file of e.files) {
-			await bookmarkStore.updateFilePath(
-				file.oldUri.fsPath,
-				file.newUri.fsPath,
-			);
-		}
-		treeDataProvider.refresh();
+	const fileWatcher = vscode.workspace.onDidRenameFiles((e) => {
+		void trackPendingOperation(
+			(async () => {
+				for (const file of e.files) {
+					await bookmarkStore.updateFilePath(
+						file.oldUri.fsPath,
+						file.newUri.fsPath,
+					);
+				}
+				treeDataProvider.refresh();
+			})(),
+		);
 	});
 
 	// Document change listener for line tracking
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument(
-		async (e) => {
+		(e) => {
 			if (e.contentChanges.length > 0) {
 				const filePath = e.document.uri.fsPath;
 				const branchName = gitService.getCurrentBranch();
-				await bookmarkStore.updateLineNumbers(filePath, branchName, [
-					...e.contentChanges,
-				]);
+				void trackPendingOperation(
+					bookmarkStore
+						.updateLineNumbers(filePath, branchName, [...e.contentChanges])
+						.then(() => {
+							treeDataProvider.refresh();
+						}),
+				);
 			}
 		},
 	);
@@ -76,7 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	// Auto-cleanup on activation
-	performCleanup();
+	void trackPendingOperation(performCleanup());
 
 	// Push all disposables
 	context.subscriptions.push(
@@ -88,6 +124,11 @@ export function activate(context: vscode.ExtensionContext) {
 		gitService,
 		decorationManager,
 	);
+
+	return {
+		getBookmarkStore: () => bookmarkStore,
+		whenIdle: waitForPendingOperations,
+	};
 }
 
 async function addBookmark(): Promise<void> {
