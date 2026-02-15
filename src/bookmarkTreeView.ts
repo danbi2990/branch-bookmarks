@@ -33,11 +33,12 @@ export class BookmarkTreeItem extends vscode.TreeItem {
 		public readonly isCurrentBranch: boolean,
 	) {
 		const lineNum = bookmark.lineNumber + 1;
-		const label = `Line ${lineNum}`;
+		const lineText = bookmark.lineText?.trim();
+		const label = lineText && lineText.length > 0 ? lineText : "(empty line)";
 		super(label, vscode.TreeItemCollapsibleState.None);
 
-		this.tooltip = `${bookmark.lineText || "No preview"}\nBranch: ${bookmark.branchName}`;
-		this.description = bookmark.lineText?.trim().substring(0, 50) || "";
+		this.tooltip = `Line ${lineNum}\n${bookmark.lineText || "No preview"}\nBranch: ${bookmark.branchName}`;
+		this.description = `Line ${lineNum}`;
 		this.contextValue = "bookmark";
 
 		// Different icon for current vs other branch bookmarks

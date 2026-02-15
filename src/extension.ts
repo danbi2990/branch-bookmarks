@@ -241,10 +241,12 @@ async function showQuickPick(): Promise<void> {
 		const fileName = path.basename(b.filePath);
 		const lineNum = b.lineNumber + 1;
 		const displayPath = toDisplayPath(b.filePath);
+		const lineText = b.lineText?.trim();
+		const labelText = lineText && lineText.length > 0 ? lineText : "(empty line)";
 
 		return {
-			label: `$(bookmark) ${fileName}:${lineNum}`,
-			description: b.lineText?.trim().substring(0, 60) || "",
+			label: `$(bookmark) ${labelText}`,
+			description: `${fileName}:${lineNum}`,
 			detail: displayPath,
 			bookmark: b,
 		};

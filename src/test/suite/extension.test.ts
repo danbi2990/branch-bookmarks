@@ -624,7 +624,7 @@ suite("Bookmark Extension Integration", () => {
 		);
 	});
 
-	test("tree provider returns bookmarks ordered by line number", async () => {
+	test("tree provider returns line-content labels ordered by line number", async () => {
 		const api = await getApi();
 		const provider = api.getTreeDataProvider();
 		const store = api.getBookmarkStore();
@@ -647,6 +647,6 @@ suite("Bookmark Extension Integration", () => {
 		const lineChildren = (await provider.getChildren(rootItems[0] as never)).map(
 			(item) => String(item.label),
 		);
-		assert.deepStrictEqual(lineChildren, ["Line 3", "Line 9"]);
+		assert.deepStrictEqual(lineChildren, ["a-3", "a-9"]);
 	});
 });
