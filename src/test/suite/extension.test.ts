@@ -163,6 +163,68 @@ suite("Bookmark Extension Integration", () => {
 		assert.strictEqual(bookmarks[0].lineNumber, originalLine + 1);
 	});
 
+	test("bookmark is preserved after format-like full-document replacement", async () => {
+		const api = await getApi();
+		const original = [
+			"function test( ) {",
+			"  const a=1;",
+			"  const b=2;",
+			"  return a+b;",
+			"}",
+		].join("\n");
+		const formatted = [
+			"function test() {",
+			"  const a = 1;",
+			"  const b = 2;",
+			"  return a + b;",
+			"}",
+		].join("\n");
+		const editor = await openFixtureEditor("format-replace-test.ts", original);
+		const filePath = editor.document.uri.fsPath;
+		const bookmarkedLine = 3;
+
+		await addBookmarkAtLine(editor, bookmarkedLine);
+		await api.whenIdle();
+
+		const lastLine = editor.document.lineCount - 1;
+		const lastChar = editor.document.lineAt(lastLine).text.length;
+		await editor.edit((builder) => {
+			builder.replace(new vscode.Range(0, 0, lastLine, lastChar), formatted);
+		});
+		await api.whenIdle();
+
+		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine);
+	});
+
+	test("bookmark survives when formatting removes a blank line above it", async () => {
+		const api = await getApi();
+		const source = [
+			"function test( ) {",
+			"",
+			"  const b=2;",
+			"  return a+b;",
+			"}",
+		].join("\n");
+		const editor = await openFixtureEditor("format-blank-line-test.ts", source);
+		const filePath = editor.document.uri.fsPath;
+		const bookmarkedLine = 2;
+
+		await addBookmarkAtLine(editor, bookmarkedLine);
+		await api.whenIdle();
+
+		// Simulates formatter removing the blank line (line 2 in 1-based indexing).
+		await editor.edit((builder) => {
+			builder.delete(new vscode.Range(1, 0, 2, 0));
+		});
+		await api.whenIdle();
+
+		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, 1);
+	});
+
 	test("multiple workspace edits in one apply shift bookmark cumulatively", async () => {
 		const api = await getApi();
 		const editor = await openFixtureEditor("multi-edit-test.ts", buildLines(50));

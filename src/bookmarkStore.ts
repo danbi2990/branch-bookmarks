@@ -233,7 +233,7 @@ export class BookmarkStore {
 		}
 
 		let modified = false;
-		const bookmarksToRemove: string[] = [];
+		const bookmarksToRemove = new Set<string>();
 
 		for (const change of changes) {
 			const startLine = change.range.start.line;
@@ -241,26 +241,46 @@ export class BookmarkStore {
 			const linesRemoved = endLine - startLine;
 			const linesAdded = change.text.split("\n").length - 1;
 			const lineDelta = linesAdded - linesRemoved;
+			const isDeletionOnly = linesRemoved > 0 && change.text.length === 0;
+			const deletedEndLine =
+				change.range.end.character === 0 && endLine > startLine
+					? endLine - 1
+					: endLine;
 
 			for (const bookmark of bookmarkList) {
 				// Skip bookmarks already marked for removal
-				if (bookmarksToRemove.includes(bookmark.id)) {
+				if (bookmarksToRemove.has(bookmark.id)) {
 					continue;
 				}
 
 				if (lineDelta !== 0 || linesRemoved > 0) {
-					if (bookmark.lineNumber > endLine) {
+					if (bookmark.lineNumber > deletedEndLine) {
 						// Bookmark is after the change - adjust by line delta
 						bookmark.lineNumber += lineDelta;
 						modified = true;
 					} else if (
 						bookmark.lineNumber >= startLine &&
-						bookmark.lineNumber <= endLine &&
+						bookmark.lineNumber <= deletedEndLine &&
 						linesRemoved > 0
 					) {
-						// Bookmark is within deleted range - remove the bookmark
-						bookmarksToRemove.push(bookmark.id);
-						modified = true;
+						if (isDeletionOnly) {
+							// Pure deletion: remove bookmarks inside the deleted range.
+							bookmarksToRemove.add(bookmark.id);
+							modified = true;
+						} else {
+							// Replacement (e.g. format document): preserve bookmark by
+							// mapping it to the closest resulting line in the replaced block.
+							const relativeLine = bookmark.lineNumber - startLine;
+							const replacementEndLine = startLine + linesAdded;
+							const newLine = Math.min(
+								startLine + Math.max(relativeLine, 0),
+								replacementEndLine,
+							);
+							if (newLine !== bookmark.lineNumber) {
+								bookmark.lineNumber = newLine;
+								modified = true;
+							}
+						}
 					}
 				}
 			}
