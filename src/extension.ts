@@ -149,10 +149,6 @@ async function addBookmark(): Promise<void> {
 
 	await bookmarkStore.add(filePath, lineNumber, branchName, lineText);
 	treeDataProvider.refresh();
-
-	vscode.window.showInformationMessage(
-		`Bookmark added at line ${lineNumber + 1}`,
-	);
 }
 
 async function removeBookmark(): Promise<void> {
@@ -166,20 +162,12 @@ async function removeBookmark(): Promise<void> {
 	const filePath = editor.document.uri.fsPath;
 	const branchName = gitService.getCurrentBranch();
 
-	const removed = await bookmarkStore.removeAtLine(
+	await bookmarkStore.removeAtLine(
 		filePath,
 		lineNumber,
 		branchName,
 	);
 	treeDataProvider.refresh();
-
-	if (removed) {
-		vscode.window.showInformationMessage(
-			`Bookmark removed from line ${lineNumber + 1}`,
-		);
-	} else {
-		vscode.window.showWarningMessage("No bookmark at current line");
-	}
 }
 
 async function toggleBookmark(): Promise<void> {
@@ -195,15 +183,9 @@ async function toggleBookmark(): Promise<void> {
 
 	if (bookmarkStore.hasBookmarkAtLine(filePath, lineNumber, branchName)) {
 		await bookmarkStore.removeAtLine(filePath, lineNumber, branchName);
-		vscode.window.showInformationMessage(
-			`Bookmark removed from line ${lineNumber + 1}`,
-		);
 	} else {
 		const lineText = editor.document.lineAt(lineNumber).text;
 		await bookmarkStore.add(filePath, lineNumber, branchName, lineText);
-		vscode.window.showInformationMessage(
-			`Bookmark added at line ${lineNumber + 1}`,
-		);
 	}
 
 	treeDataProvider.refresh();
