@@ -108,8 +108,6 @@ export function activate(
 
 	// Register commands
 	const commands = [
-		vscode.commands.registerCommand("bookmark.add", addBookmark),
-		vscode.commands.registerCommand("bookmark.remove", removeBookmark),
 		vscode.commands.registerCommand("bookmark.toggle", toggleBookmark),
 		vscode.commands.registerCommand("bookmark.listQuickPick", showQuickPick),
 		vscode.commands.registerCommand(
@@ -194,41 +192,6 @@ export function activate(
 		clearBranchTransitionForTest: clearLineTrackingSuspension,
 		whenIdle: waitForPendingOperations,
 	};
-}
-
-async function addBookmark(): Promise<void> {
-	const editor = vscode.window.activeTextEditor;
-	if (!editor) {
-		vscode.window.showWarningMessage("No active editor");
-		return;
-	}
-
-	const lineNumber = editor.selection.active.line;
-	const filePath = editor.document.uri.fsPath;
-	const branchName = gitService.getCurrentBranch();
-	const lineText = editor.document.lineAt(lineNumber).text;
-
-	await bookmarkStore.add(filePath, lineNumber, branchName, lineText);
-	treeDataProvider.refresh();
-}
-
-async function removeBookmark(): Promise<void> {
-	const editor = vscode.window.activeTextEditor;
-	if (!editor) {
-		vscode.window.showWarningMessage("No active editor");
-		return;
-	}
-
-	const lineNumber = editor.selection.active.line;
-	const filePath = editor.document.uri.fsPath;
-	const branchName = gitService.getCurrentBranch();
-
-	await bookmarkStore.removeAtLine(
-		filePath,
-		lineNumber,
-		branchName,
-	);
-	treeDataProvider.refresh();
 }
 
 async function toggleBookmark(): Promise<void> {

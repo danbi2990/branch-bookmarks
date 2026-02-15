@@ -16,18 +16,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "bookmark.add",
-        "title": "Add Bookmark",
-        "category": "Bookmark",
-        "icon": "$(bookmark)"
-      },
-      {
-        "command": "bookmark.remove",
-        "title": "Remove Bookmark",
-        "category": "Bookmark",
-        "icon": "$(close)"
-      },
-      {
         "command": "bookmark.toggle",
         "title": "Toggle Bookmark",
         "category": "Bookmark",

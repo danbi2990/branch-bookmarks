@@ -45,7 +45,7 @@ suite("Bookmark Extension Integration", () => {
 		lineNumber: number,
 	): Promise<void> {
 		editor.selection = new vscode.Selection(lineNumber, 0, lineNumber, 0);
-		await vscode.commands.executeCommand("bookmark.add");
+		await vscode.commands.executeCommand("bookmark.toggle");
 	}
 
 	suiteSetup(async () => {

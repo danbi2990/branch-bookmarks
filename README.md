@@ -4,7 +4,7 @@ A powerful bookmark extension that allows you to bookmark specific lines in your
 
 ## Features
 
-- **Add/Remove/Toggle Bookmarks** - Quickly bookmark lines with keyboard shortcuts
+- **Toggle Bookmarks** - Quickly add or remove bookmarks with one shortcut
 - **TreeView Panel** - Browse all bookmarks in the Explorer sidebar
 - **Quick Pick Menu** - Fuzzy search through all bookmarks
 - **Git Branch Support** - Bookmarks are scoped to Git branches
@@ -17,17 +17,15 @@ A powerful bookmark extension that allows you to bookmark specific lines in your
 
 ### Keyboard Shortcuts
 
-| Command | Windows/Linux | macOS |
-| --- | --- | --- |
-| Toggle Bookmark | `F3` | `F3` |
-| List Bookmarks (Quick Pick) | `Shift+F3` | `Shift+F3` |
+| Command | Shortcut |
+| --- | --- |
+| Toggle Bookmark | `F3` |
+| List Bookmarks (Quick Pick) | `Shift+F3` |
 
 ### Commands
 
 All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
-- `Bookmark: Add Bookmark` - Add bookmark at current line
-- `Bookmark: Remove Bookmark` - Remove bookmark at current line
 - `Bookmark: Toggle Bookmark` - Toggle bookmark at current line
 - `Bookmark: List Bookmarks (Quick Pick)` - Show all bookmarks in a quick pick menu
 - `Bookmark: Change Sort Order` - Change how bookmarks are sorted
