@@ -241,6 +241,15 @@ export class BookmarkStore {
 			const linesRemoved = endLine - startLine;
 			const linesAdded = change.text.split("\n").length - 1;
 			const lineDelta = linesAdded - linesRemoved;
+			const isPureInsertion =
+				linesRemoved === 0 &&
+				change.range.start.line === change.range.end.line &&
+				change.range.start.character === change.range.end.character;
+			const insertsBeforeLineAtStart =
+				isPureInsertion &&
+				change.range.start.character === 0 &&
+				!change.text.startsWith("\n") &&
+				linesAdded > 0;
 			const isDeletionOnly = linesRemoved > 0 && change.text.length === 0;
 			const deletedEndLine =
 				change.range.end.character === 0 && endLine > startLine
@@ -254,7 +263,10 @@ export class BookmarkStore {
 				}
 
 				if (lineDelta !== 0 || linesRemoved > 0) {
-					if (bookmark.lineNumber > deletedEndLine) {
+					if (
+						bookmark.lineNumber > deletedEndLine ||
+						(insertsBeforeLineAtStart && bookmark.lineNumber === startLine)
+					) {
 						// Bookmark is after the change - adjust by line delta
 						bookmark.lineNumber += lineDelta;
 						modified = true;

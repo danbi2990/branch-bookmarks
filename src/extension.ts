@@ -150,11 +150,17 @@ export function activate(
 				}
 				const filePath = e.document.uri.fsPath;
 				const branchName = gitService.getCurrentBranch();
+				const documentUri = e.document.uri.toString();
 				void trackPendingOperation(
 					bookmarkStore
 						.updateLineNumbers(filePath, branchName, [...e.contentChanges])
 						.then(() => {
 							treeDataProvider.refresh();
+							for (const editor of vscode.window.visibleTextEditors) {
+								if (editor.document.uri.toString() === documentUri) {
+									decorationManager.updateDecorations(editor);
+								}
+							}
 						}),
 				);
 			}

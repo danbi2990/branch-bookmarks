@@ -126,6 +126,102 @@ suite("Bookmark Extension Integration", () => {
 		assert.strictEqual(bookmarks[0].lineNumber, originalLine + 3);
 	});
 
+	test("bookmark at first line shifts when a line is inserted above it", async () => {
+		const api = await getApi();
+		const editor = await openFixtureEditor(
+			"first-line-insert-above-test.ts",
+			buildLines(8),
+		);
+		const filePath = editor.document.uri.fsPath;
+
+		await addBookmarkAtLine(editor, 0);
+		await api.whenIdle();
+
+		await editor.edit((builder) => {
+			builder.insert(new vscode.Position(0, 0), "new-top\n");
+		});
+		await api.whenIdle();
+
+		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, 1);
+	});
+
+	test("bookmark at last line stays when a new line is appended below", async () => {
+		const api = await getApi();
+		const editor = await openFixtureEditor(
+			"last-line-append-below-test.ts",
+			buildLines(6),
+		);
+		const filePath = editor.document.uri.fsPath;
+		const lastLine = editor.document.lineCount - 1;
+		const lastLineEnd = editor.document.lineAt(lastLine).range.end;
+
+		await addBookmarkAtLine(editor, lastLine);
+		await api.whenIdle();
+
+		await editor.edit((builder) => {
+			builder.insert(lastLineEnd, "\nappended-line");
+		});
+		await api.whenIdle();
+
+		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, lastLine);
+	});
+
+	test("bookmark on empty last line stays when appending a line below", async () => {
+		const api = await getApi();
+		const editor = await openFixtureEditor(
+			"empty-last-line-append-below-test.ts",
+			`${buildLines(6)}\n`,
+		);
+		const filePath = editor.document.uri.fsPath;
+		const emptyLastLine = editor.document.lineCount - 1;
+
+		assert.strictEqual(editor.document.lineAt(emptyLastLine).text, "");
+		await addBookmarkAtLine(editor, emptyLastLine);
+		await api.whenIdle();
+
+		await editor.edit((builder) => {
+			builder.insert(
+				new vscode.Position(emptyLastLine, 0),
+				"\nappended-after-empty-last-line",
+			);
+		});
+		await api.whenIdle();
+
+		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, emptyLastLine);
+	});
+
+	test("pressing Enter on empty last line does not duplicate bookmark", async () => {
+		const api = await getApi();
+		const editor = await openFixtureEditor(
+			"empty-last-line-enter-no-duplicate-test.ts",
+			`${buildLines(6)}\n`,
+		);
+		const filePath = editor.document.uri.fsPath;
+		const emptyLastLine = editor.document.lineCount - 1;
+
+		assert.strictEqual(editor.document.lineAt(emptyLastLine).text, "");
+		editor.selection = new vscode.Selection(
+			emptyLastLine,
+			0,
+			emptyLastLine,
+			0,
+		);
+		await vscode.commands.executeCommand("bookmark.toggle");
+		await api.whenIdle();
+
+		await vscode.commands.executeCommand("type", { text: "\n" });
+		await api.whenIdle();
+
+		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+		assert.strictEqual(bookmarks.length, 1);
+	});
+
 	test("line tracking is suppressed during branch transition", async () => {
 		const api = await getApi();
 		const editor = await openFixtureEditor(
