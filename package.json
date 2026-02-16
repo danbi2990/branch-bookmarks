@@ -3,6 +3,7 @@
   "displayName": "Branch Bookmarks",
   "description": "Bookmark specific lines in your code files for easy navigation with Git branch support",
   "icon": "assets/icon.png",
+  "publisher": "danbi2990",
   "version": "0.0.1",
   "repository": {
     "type": "git",
