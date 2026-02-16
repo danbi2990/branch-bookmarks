@@ -7,7 +7,7 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"/Users/jake/Downloads/Development/test-bookmark"
+				"${workspaceFolder}/../test-bookmark"
 			],
 			"outFiles": ["${workspaceFolder}/out/**/*.js"],
 			"preLaunchTask": "${defaultBuildTask}"

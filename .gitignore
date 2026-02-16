@@ -5,3 +5,8 @@ node_modules
 *.vsix
 scratch/
 src/test/fixture/workspace/.vscode/
+
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
