@@ -15,6 +15,11 @@ Branch-aware bookmarks for VS Code.
 - Bookmark cleanup for deleted/out-of-range files/lines
 - File rename/move tracking
 
+## Sorting Behavior
+
+- Sidebar (`Bookmarks` view): shows bookmarks from the current branch only, groups by file, sorts files alphabetically, and sorts bookmarks in each file by line number (ascending).
+- Quick Pick (`Bookmark: List Bookmarks`): shows bookmarks from the current branch sorted by recently added first.
+
 ## Keyboard Shortcuts
 
 | Action | Shortcut | Command ID |

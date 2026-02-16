@@ -46,11 +46,6 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "bookmark.goToBookmark",
-        "title": "Go to Bookmark",
-        "category": "Bookmark"
-      },
-      {
         "command": "bookmark.removeFromView",
         "title": "Remove Bookmark",
         "category": "Bookmark",
@@ -86,6 +81,12 @@
       ]
     },
     "menus": {
+      "commandPalette": [
+        {
+          "command": "bookmark.removeFromView",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "bookmark.refresh",
