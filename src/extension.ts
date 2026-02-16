@@ -90,6 +90,14 @@ function clearLineTrackingSuspension(): void {
 	manualSuspendUntil = 0;
 }
 
+function refreshDecorationsForDocument(documentUri: string): void {
+	for (const editor of vscode.window.visibleTextEditors) {
+		if (editor.document.uri.toString() === documentUri) {
+			decorationManager.updateDecorations(editor);
+		}
+	}
+}
+
 export function activate(
 	context: vscode.ExtensionContext,
 ): ExtensionTestApi {
@@ -141,26 +149,21 @@ export function activate(
 	// Document change listener for line tracking
 	const documentChangeListener = vscode.workspace.onDidChangeTextDocument(
 		(e) => {
-			if (e.contentChanges.length > 0) {
-				if (isLineTrackingSuspended()) {
-					return;
-				}
-				const filePath = e.document.uri.fsPath;
-				const branchName = gitService.getCurrentBranch();
-				const documentUri = e.document.uri.toString();
-				void trackPendingOperation(
-					bookmarkStore
-						.updateLineNumbers(filePath, branchName, [...e.contentChanges])
-						.then(() => {
-							treeDataProvider.refresh();
-							for (const editor of vscode.window.visibleTextEditors) {
-								if (editor.document.uri.toString() === documentUri) {
-									decorationManager.updateDecorations(editor);
-								}
-							}
-						}),
-				);
+			if (e.contentChanges.length === 0 || isLineTrackingSuspended()) {
+				return;
 			}
+
+			const filePath = e.document.uri.fsPath;
+			const branchName = gitService.getCurrentBranch();
+			const documentUri = e.document.uri.toString();
+			void trackPendingOperation(
+				bookmarkStore
+					.updateLineNumbers(filePath, branchName, [...e.contentChanges])
+					.then(() => {
+						treeDataProvider.refresh();
+						refreshDecorationsForDocument(documentUri);
+					}),
+			);
 		},
 	);
 
@@ -373,11 +376,13 @@ async function goToBookmark(bookmark: Bookmark): Promise<void> {
 	}
 }
 
-async function removeFromView(item: BookmarkTreeItem): Promise<void> {
-	if (item?.bookmark) {
-		await bookmarkStore.remove(item.bookmark.id);
-		treeDataProvider.refresh();
+async function removeFromView(item?: BookmarkTreeItem): Promise<void> {
+	if (!item) {
+		return;
 	}
+
+	await bookmarkStore.remove(item.bookmark.id);
+	treeDataProvider.refresh();
 }
 
 async function performCleanup(): Promise<void> {

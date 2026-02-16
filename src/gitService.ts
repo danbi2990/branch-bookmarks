@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 
+const DEFAULT_BRANCH_NAME = "main";
+
 interface GitHead {
 	name?: string;
 }
@@ -30,7 +32,7 @@ export class GitService {
 	private _onDidChangeBranch = new vscode.EventEmitter<string>();
 	public readonly onDidChangeBranch = this._onDidChangeBranch.event;
 
-	private currentBranch: string = "main";
+	private currentBranch = DEFAULT_BRANCH_NAME;
 	private disposables: vscode.Disposable[] = [];
 
 	constructor() {
@@ -69,6 +71,14 @@ export class GitService {
 		this.disposables.push(stateChangeListener);
 	}
 
+	private getGitApi(): GitApi | undefined {
+		return this.gitExtension?.exports.getAPI(1);
+	}
+
+	private getPrimaryRepository(): GitRepository | undefined {
+		return this.getGitApi()?.repositories[0];
+	}
+
 	private async updateCurrentBranch(): Promise<void> {
 		const newBranch = await this.getBranchName();
 		if (newBranch !== this.currentBranch) {
@@ -82,23 +92,19 @@ export class GitService {
 	 */
 	async getBranchName(): Promise<string> {
 		if (!this.gitExtension) {
-			return "main";
+			return DEFAULT_BRANCH_NAME;
 		}
 
 		try {
-			const git = this.gitExtension.exports.getAPI(1);
-			if (git.repositories.length > 0) {
-				const repo = git.repositories[0];
-				const head = repo.state.HEAD;
-				if (head && head.name) {
-					return head.name;
-				}
+			const head = this.getPrimaryRepository()?.state.HEAD;
+			if (head?.name) {
+				return head.name;
 			}
 		} catch (error) {
 			console.error("Error getting Git branch:", error);
 		}
 
-		return "main";
+		return DEFAULT_BRANCH_NAME;
 	}
 
 	/**

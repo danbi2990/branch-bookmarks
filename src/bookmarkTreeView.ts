@@ -9,10 +9,7 @@ import { toDisplayPath } from "./pathDisplay";
  * Tree item representing a file with bookmarks
  */
 class FileTreeItem extends vscode.TreeItem {
-	constructor(
-		public readonly filePath: string,
-		public readonly bookmarkCount: number,
-	) {
+	constructor(public readonly filePath: string) {
 		const displayPath = toDisplayPath(filePath);
 		super(path.basename(displayPath), vscode.TreeItemCollapsibleState.Expanded);
 		const displayDir = path.dirname(displayPath);
@@ -64,6 +61,19 @@ export class BookmarkTreeItem extends vscode.TreeItem {
 
 type TreeItem = FileTreeItem | BookmarkTreeItem;
 
+function groupBookmarksByFile(bookmarks: Bookmark[]): Map<string, Bookmark[]> {
+	const fileMap = new Map<string, Bookmark[]>();
+	for (const bookmark of bookmarks) {
+		const group = fileMap.get(bookmark.filePath);
+		if (group) {
+			group.push(bookmark);
+		} else {
+			fileMap.set(bookmark.filePath, [bookmark]);
+		}
+	}
+	return fileMap;
+}
+
 /**
  * TreeDataProvider for the bookmark view
  */
@@ -95,22 +105,12 @@ export class BookmarkTreeDataProvider
 			// Root level: return files
 			const allBookmarks =
 				this.bookmarkStore.getAllBookmarksForBranch(currentBranch);
-
-			// Group by file
-			const fileMap = new Map<string, Bookmark[]>();
-			for (const bookmark of allBookmarks) {
-				if (!fileMap.has(bookmark.filePath)) {
-					fileMap.set(bookmark.filePath, []);
-				}
-				fileMap.get(bookmark.filePath)!.push(bookmark);
-			}
+			const fileMap = groupBookmarksByFile(allBookmarks);
 
 			// Sort files alphabetically
 			const sortedFiles = Array.from(fileMap.keys()).sort();
 
-			return sortedFiles.map(
-				(filePath) => new FileTreeItem(filePath, fileMap.get(filePath)!.length),
-			);
+			return sortedFiles.map((filePath) => new FileTreeItem(filePath));
 		}
 
 		if (element instanceof FileTreeItem) {

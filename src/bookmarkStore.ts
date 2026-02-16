@@ -3,18 +3,17 @@ import { Bookmark, BookmarkData, SortOrder } from "./types";
 
 const STORAGE_KEY = "bookmarkExtension.bookmarks";
 const STORAGE_VERSION = 1;
+const KEY_SEPARATOR = "::";
 
 /**
  * Manages bookmark CRUD operations and persistence
  */
 export class BookmarkStore {
-	private bookmarks: Map<string, Bookmark[]> = new Map();
-	private context: vscode.ExtensionContext;
-	private _onDidChangeBookmarks = new vscode.EventEmitter<void>();
+	private readonly bookmarks: Map<string, Bookmark[]> = new Map();
+	private readonly _onDidChangeBookmarks = new vscode.EventEmitter<void>();
 	public readonly onDidChangeBookmarks = this._onDidChangeBookmarks.event;
 
-	constructor(context: vscode.ExtensionContext) {
-		this.context = context;
+	constructor(private readonly context: vscode.ExtensionContext) {
 		this.load();
 	}
 
@@ -22,7 +21,7 @@ export class BookmarkStore {
 	 * Generate a unique ID for a bookmark
 	 */
 	private generateId(): string {
-		return Date.now().toString(36) + Math.random().toString(36).substr(2);
+		return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 	}
 
 	/**
@@ -30,15 +29,14 @@ export class BookmarkStore {
 	 */
 	private load(): void {
 		const data = this.context.workspaceState.get<BookmarkData>(STORAGE_KEY);
-		if (data && data.version === STORAGE_VERSION) {
-			this.bookmarks.clear();
-			for (const bookmark of data.bookmarks) {
-				const key = this.getKey(bookmark.filePath, bookmark.branchName);
-				if (!this.bookmarks.has(key)) {
-					this.bookmarks.set(key, []);
-				}
-				this.bookmarks.get(key)!.push(bookmark);
-			}
+		this.bookmarks.clear();
+		if (!data || data.version !== STORAGE_VERSION) {
+			return;
+		}
+
+		for (const bookmark of data.bookmarks) {
+			const key = this.getKey(bookmark.filePath, bookmark.branchName);
+			this.getOrCreateBookmarkList(key).push(bookmark);
 		}
 	}
 
@@ -46,12 +44,8 @@ export class BookmarkStore {
 	 * Save bookmarks to workspace state
 	 */
 	private async save(): Promise<void> {
-		const allBookmarks: Bookmark[] = [];
-		for (const bookmarkList of this.bookmarks.values()) {
-			allBookmarks.push(...bookmarkList);
-		}
 		const data: BookmarkData = {
-			bookmarks: allBookmarks,
+			bookmarks: this.getAllBookmarks(),
 			version: STORAGE_VERSION,
 		};
 		await this.context.workspaceState.update(STORAGE_KEY, data);
@@ -61,7 +55,42 @@ export class BookmarkStore {
 	 * Get storage key for file + branch combination
 	 */
 	private getKey(filePath: string, branchName: string): string {
-		return `${branchName}::${filePath}`;
+		return `${branchName}${KEY_SEPARATOR}${filePath}`;
+	}
+
+	private getOrCreateBookmarkList(key: string): Bookmark[] {
+		let bookmarkList = this.bookmarks.get(key);
+		if (!bookmarkList) {
+			bookmarkList = [];
+			this.bookmarks.set(key, bookmarkList);
+		}
+		return bookmarkList;
+	}
+
+	private removeKeyIfEmpty(key: string, bookmarkList: Bookmark[]): void {
+		if (bookmarkList.length === 0) {
+			this.bookmarks.delete(key);
+		}
+	}
+
+	private async saveAndNotify(): Promise<void> {
+		await this.save();
+		this._onDidChangeBookmarks.fire();
+	}
+
+	private async removeBookmarkAtIndex(
+		key: string,
+		bookmarkList: Bookmark[],
+		index: number,
+	): Promise<boolean> {
+		if (index === -1) {
+			return false;
+		}
+
+		bookmarkList.splice(index, 1);
+		this.removeKeyIfEmpty(key, bookmarkList);
+		await this.saveAndNotify();
+		return true;
 	}
 
 	/**
@@ -74,14 +103,10 @@ export class BookmarkStore {
 		lineText?: string,
 	): Promise<Bookmark> {
 		const key = this.getKey(filePath, branchName);
-		if (!this.bookmarks.has(key)) {
-			this.bookmarks.set(key, []);
-		}
+		const bookmarkList = this.getOrCreateBookmarkList(key);
 
 		// Check if bookmark already exists at this line
-		const existing = this.bookmarks
-			.get(key)!
-			.find((b) => b.lineNumber === lineNumber);
+		const existing = bookmarkList.find((b) => b.lineNumber === lineNumber);
 		if (existing) {
 			return existing;
 		}
@@ -95,9 +120,8 @@ export class BookmarkStore {
 			lineText,
 		};
 
-		this.bookmarks.get(key)!.push(bookmark);
-		await this.save();
-		this._onDidChangeBookmarks.fire();
+		bookmarkList.push(bookmark);
+		await this.saveAndNotify();
 		return bookmark;
 	}
 
@@ -107,13 +131,7 @@ export class BookmarkStore {
 	async remove(id: string): Promise<boolean> {
 		for (const [key, bookmarkList] of this.bookmarks.entries()) {
 			const index = bookmarkList.findIndex((b) => b.id === id);
-			if (index !== -1) {
-				bookmarkList.splice(index, 1);
-				if (bookmarkList.length === 0) {
-					this.bookmarks.delete(key);
-				}
-				await this.save();
-				this._onDidChangeBookmarks.fire();
+			if (await this.removeBookmarkAtIndex(key, bookmarkList, index)) {
 				return true;
 			}
 		}
@@ -135,16 +153,7 @@ export class BookmarkStore {
 		}
 
 		const index = bookmarkList.findIndex((b) => b.lineNumber === lineNumber);
-		if (index !== -1) {
-			bookmarkList.splice(index, 1);
-			if (bookmarkList.length === 0) {
-				this.bookmarks.delete(key);
-			}
-			await this.save();
-			this._onDidChangeBookmarks.fire();
-			return true;
-		}
-		return false;
+		return this.removeBookmarkAtIndex(key, bookmarkList, index);
 	}
 
 	/**
@@ -187,7 +196,7 @@ export class BookmarkStore {
 	getBookmarksForFileAllBranches(filePath: string): Bookmark[] {
 		const result: Bookmark[] = [];
 		for (const [key, bookmarkList] of this.bookmarks.entries()) {
-			if (key.endsWith(`::${filePath}`)) {
+			if (key.endsWith(`${KEY_SEPARATOR}${filePath}`)) {
 				result.push(...bookmarkList);
 			}
 		}
@@ -200,7 +209,7 @@ export class BookmarkStore {
 	getAllBookmarksForBranch(branchName: string): Bookmark[] {
 		const result: Bookmark[] = [];
 		for (const [key, bookmarkList] of this.bookmarks.entries()) {
-			if (key.startsWith(`${branchName}::`)) {
+			if (key.startsWith(`${branchName}${KEY_SEPARATOR}`)) {
 				result.push(...bookmarkList);
 			}
 		}
@@ -299,20 +308,18 @@ export class BookmarkStore {
 		}
 
 		// Remove bookmarks that were in deleted lines
-		for (const id of bookmarksToRemove) {
-			const index = bookmarkList.findIndex((b) => b.id === id);
-			if (index !== -1) {
-				bookmarkList.splice(index, 1);
-			}
+		if (bookmarksToRemove.size > 0) {
+			const remainingBookmarks = bookmarkList.filter(
+				(bookmark) => !bookmarksToRemove.has(bookmark.id),
+			);
+			bookmarkList.length = 0;
+			bookmarkList.push(...remainingBookmarks);
 		}
 
-		if (bookmarkList.length === 0) {
-			this.bookmarks.delete(key);
-		}
+		this.removeKeyIfEmpty(key, bookmarkList);
 
 		if (modified) {
-			await this.save();
-			this._onDidChangeBookmarks.fire();
+			await this.saveAndNotify();
 		}
 	}
 
@@ -324,24 +331,49 @@ export class BookmarkStore {
 		const keysToUpdate: [string, string][] = [];
 
 		for (const key of this.bookmarks.keys()) {
-			if (key.endsWith(`::${oldPath}`)) {
-				keysToUpdate.push([key, key.replace(`::${oldPath}`, `::${newPath}`)]);
+			if (key.endsWith(`${KEY_SEPARATOR}${oldPath}`)) {
+				keysToUpdate.push([
+					key,
+					key.replace(
+						`${KEY_SEPARATOR}${oldPath}`,
+						`${KEY_SEPARATOR}${newPath}`,
+					),
+				]);
 			}
 		}
 
 		for (const [oldKey, newKey] of keysToUpdate) {
-			const bookmarkList = this.bookmarks.get(oldKey)!;
+			if (oldKey === newKey) {
+				continue;
+			}
+
+			const bookmarkList = this.bookmarks.get(oldKey);
+			if (!bookmarkList) {
+				continue;
+			}
+
 			for (const bookmark of bookmarkList) {
 				bookmark.filePath = newPath;
 			}
 			this.bookmarks.delete(oldKey);
-			this.bookmarks.set(newKey, bookmarkList);
+
+			const existingList = this.bookmarks.get(newKey);
+			if (!existingList) {
+				this.bookmarks.set(newKey, bookmarkList);
+			} else {
+				const seenIds = new Set(existingList.map((bookmark) => bookmark.id));
+				for (const bookmark of bookmarkList) {
+					if (!seenIds.has(bookmark.id)) {
+						existingList.push(bookmark);
+						seenIds.add(bookmark.id);
+					}
+				}
+			}
 			modified = true;
 		}
 
 		if (modified) {
-			await this.save();
-			this._onDidChangeBookmarks.fire();
+			await this.saveAndNotify();
 		}
 	}
 
@@ -368,8 +400,7 @@ export class BookmarkStore {
 
 			bookmark.lineNumber = lineNumber;
 			bookmark.lineText = lineText;
-			await this.save();
-			this._onDidChangeBookmarks.fire();
+			await this.saveAndNotify();
 			return true;
 		}
 		return false;
@@ -397,12 +428,13 @@ export class BookmarkStore {
 					const invalidBookmarks = bookmarkList.filter(
 						(b) => b.lineNumber >= lineCount,
 					);
-					for (const invalid of invalidBookmarks) {
-						const index = bookmarkList.indexOf(invalid);
-						if (index !== -1) {
-							bookmarkList.splice(index, 1);
-							removedCount++;
-						}
+					if (invalidBookmarks.length > 0) {
+						removedCount += invalidBookmarks.length;
+						const remainingBookmarks = bookmarkList.filter(
+							(bookmark) => bookmark.lineNumber < lineCount,
+						);
+						bookmarkList.length = 0;
+						bookmarkList.push(...remainingBookmarks);
 					}
 
 					if (bookmarkList.length === 0) {
@@ -421,8 +453,7 @@ export class BookmarkStore {
 		}
 
 		if (removedCount > 0) {
-			await this.save();
-			this._onDidChangeBookmarks.fire();
+			await this.saveAndNotify();
 		}
 
 		return removedCount;
@@ -433,8 +464,7 @@ export class BookmarkStore {
 	 */
 	async clearAll(): Promise<void> {
 		this.bookmarks.clear();
-		await this.save();
-		this._onDidChangeBookmarks.fire();
+		await this.saveAndNotify();
 	}
 
 	/**

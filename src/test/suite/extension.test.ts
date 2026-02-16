@@ -494,6 +494,28 @@ suite("Branch Bookmarks Integration", () => {
 		assert.strictEqual(renamedBookmarks[0].lineNumber, 4);
 	});
 
+	test("updateFilePath merges into existing destination key", async () => {
+		const api = await getApi();
+		const sourceEditor = await openFixtureEditor("merge-source.ts", buildLines(12));
+		const targetEditor = await openFixtureEditor("merge-target.ts", buildLines(12));
+		const sourcePath = sourceEditor.document.uri.fsPath;
+		const targetPath = targetEditor.document.uri.fsPath;
+		const store = api.getBookmarkStore();
+
+		await store.add(sourcePath, 2, "main", "line-3");
+		await store.add(targetPath, 7, "main", "line-8");
+		await store.updateFilePath(sourcePath, targetPath);
+
+		const sourceBookmarks = store.getBookmarksForFile(sourcePath, "main");
+		const targetBookmarks = store.getBookmarksForFile(targetPath, "main");
+		assert.strictEqual(sourceBookmarks.length, 0);
+		assert.strictEqual(targetBookmarks.length, 2);
+		assert.deepStrictEqual(
+			targetBookmarks.map((bookmark) => bookmark.lineNumber).sort((a, b) => a - b),
+			[2, 7],
+		);
+	});
+
 	test("bookmarks are isolated per branch", async () => {
 		const api = await getApi();
 		const editor = await openFixtureEditor("branch-scope-test.ts", buildLines(12));
