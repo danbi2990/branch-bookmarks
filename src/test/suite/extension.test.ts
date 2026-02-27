@@ -56,6 +56,71 @@ suite("Branch Bookmarks Integration", () => {
 		await vscode.commands.executeCommand("bookmark.toggle");
 	}
 
+	async function addBookmarkAtLineAndWait(
+		api: ExtensionTestApi,
+		editor: vscode.TextEditor,
+		lineNumber: number,
+	): Promise<void> {
+		await addBookmarkAtLine(editor, lineNumber);
+		await api.whenIdle();
+	}
+
+	async function applyEditorEditAndWait(
+		api: ExtensionTestApi,
+		editor: vscode.TextEditor,
+		editCallback: (editBuilder: vscode.TextEditorEdit) => void,
+	): Promise<void> {
+		await editor.edit(editCallback);
+		await api.whenIdle();
+	}
+
+	function getBookmarksForFile(
+		api: ExtensionTestApi,
+		filePath: string,
+	): Bookmark[] {
+		return api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
+	}
+
+	function assertBookmarkCount(
+		api: ExtensionTestApi,
+		filePath: string,
+		expectedCount: number,
+	): Bookmark[] {
+		const bookmarks = getBookmarksForFile(api, filePath);
+		assert.strictEqual(bookmarks.length, expectedCount);
+		return bookmarks;
+	}
+
+	function assertSingleBookmarkLine(
+		api: ExtensionTestApi,
+		filePath: string,
+		expectedLine: number,
+	): Bookmark {
+		const bookmarks = assertBookmarkCount(api, filePath, 1);
+		assert.strictEqual(bookmarks[0].lineNumber, expectedLine);
+		return bookmarks[0];
+	}
+
+	async function expectSingleBookmarkLineAfterEditorEdit(
+		api: ExtensionTestApi,
+		fileName: string,
+		content: string,
+		bookmarkedLine: number,
+		expectedLine: number,
+		editCallback: (
+			editBuilder: vscode.TextEditorEdit,
+			editor: vscode.TextEditor,
+		) => void,
+	): Promise<void> {
+		const editor = await openFixtureEditor(fileName, content);
+		const filePath = editor.document.uri.fsPath;
+		await addBookmarkAtLineAndWait(api, editor, bookmarkedLine);
+		await applyEditorEditAndWait(api, editor, (builder) => {
+			editCallback(builder, editor);
+		});
+		assertSingleBookmarkLine(api, filePath, expectedLine);
+	}
+
 	suiteSetup(async () => {
 		await getApi();
 	});
@@ -99,36 +164,26 @@ suite("Branch Bookmarks Integration", () => {
 		await vscode.commands.executeCommand("bookmark.toggle");
 		await api.whenIdle();
 
-		let bookmarks = api
-			.getBookmarkStore()
-			.getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, targetLine);
+		assertSingleBookmarkLine(api, filePath, targetLine);
 
 		await vscode.commands.executeCommand("bookmark.toggle");
 		await api.whenIdle();
 
-		bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 0);
+		assertBookmarkCount(api, filePath, 0);
 	});
 
 	test("bookmark line shifts after text insertion above it", async () => {
 		const api = await getApi();
-		const editor = await openFixtureEditor("line-shift-test.ts", buildLines(40));
-		const filePath = editor.document.uri.fsPath;
-		const originalLine = 19;
-
-		await addBookmarkAtLine(editor, originalLine);
-		await api.whenIdle();
-
-		await editor.edit((builder) => {
-			builder.insert(new vscode.Position(5, 0), "new-a\nnew-b\nnew-c\n");
-		});
-		await api.whenIdle();
-
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, originalLine + 3);
+		await expectSingleBookmarkLineAfterEditorEdit(
+			api,
+			"line-shift-test.ts",
+			buildLines(40),
+			19,
+			22,
+			(builder) => {
+				builder.insert(new vscode.Position(5, 0), "new-a\nnew-b\nnew-c\n");
+			},
+		);
 	});
 
 	test("go to bookmark realigns stale line number using stored line text", async () => {
@@ -145,11 +200,10 @@ suite("Branch Bookmarks Integration", () => {
 		const filePath = editor.document.uri.fsPath;
 
 		// Create bookmark at the correct line first.
-		await addBookmarkAtLine(editor, 4);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, 4);
 
 		const store = api.getBookmarkStore();
-		const initialBookmark = store.getBookmarksForFileAllBranches(filePath)[0];
+		const initialBookmark = getBookmarksForFile(api, filePath)[0];
 		assert.ok(initialBookmark, "bookmark should exist before external file update");
 		assert.strictEqual(initialBookmark.lineText, "const important = 42;");
 
@@ -160,7 +214,7 @@ suite("Branch Bookmarks Integration", () => {
 			initialBookmark.lineText,
 		);
 		const staleBookmark = {
-			...store.getBookmarksForFileAllBranches(filePath)[0],
+			...getBookmarksForFile(api, filePath)[0],
 		};
 		assert.strictEqual(staleBookmark.lineNumber, 2);
 
@@ -172,9 +226,9 @@ suite("Branch Bookmarks Integration", () => {
 		assert.strictEqual(activeEditor.document.uri.fsPath, filePath);
 		assert.strictEqual(activeEditor.selection.active.line, 4);
 
-		const refreshedBookmark = store
-			.getBookmarksForFileAllBranches(filePath)
-			.find((bookmark) => bookmark.id === staleBookmark.id);
+		const refreshedBookmark = getBookmarksForFile(api, filePath).find(
+			(bookmark) => bookmark.id === staleBookmark.id,
+		);
 		assert.ok(refreshedBookmark, "bookmark should still exist after realignment");
 		assert.strictEqual(refreshedBookmark?.lineNumber, 4);
 		assert.strictEqual(refreshedBookmark?.lineText, "const important = 42;");
@@ -182,23 +236,16 @@ suite("Branch Bookmarks Integration", () => {
 
 	test("bookmark at first line shifts when a line is inserted above it", async () => {
 		const api = await getApi();
-		const editor = await openFixtureEditor(
+		await expectSingleBookmarkLineAfterEditorEdit(
+			api,
 			"first-line-insert-above-test.ts",
 			buildLines(8),
+			0,
+			1,
+			(builder) => {
+				builder.insert(new vscode.Position(0, 0), "new-top\n");
+			},
 		);
-		const filePath = editor.document.uri.fsPath;
-
-		await addBookmarkAtLine(editor, 0);
-		await api.whenIdle();
-
-		await editor.edit((builder) => {
-			builder.insert(new vscode.Position(0, 0), "new-top\n");
-		});
-		await api.whenIdle();
-
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, 1);
 	});
 
 	test("bookmark at last line stays when a new line is appended below", async () => {
@@ -211,17 +258,13 @@ suite("Branch Bookmarks Integration", () => {
 		const lastLine = editor.document.lineCount - 1;
 		const lastLineEnd = editor.document.lineAt(lastLine).range.end;
 
-		await addBookmarkAtLine(editor, lastLine);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, lastLine);
 
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.insert(lastLineEnd, "\nappended-line");
 		});
-		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, lastLine);
+		assertSingleBookmarkLine(api, filePath, lastLine);
 	});
 
 	test("bookmark on empty last line stays when appending a line below", async () => {
@@ -234,20 +277,16 @@ suite("Branch Bookmarks Integration", () => {
 		const emptyLastLine = editor.document.lineCount - 1;
 
 		assert.strictEqual(editor.document.lineAt(emptyLastLine).text, "");
-		await addBookmarkAtLine(editor, emptyLastLine);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, emptyLastLine);
 
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.insert(
 				new vscode.Position(emptyLastLine, 0),
 				"\nappended-after-empty-last-line",
 			);
 		});
-		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, emptyLastLine);
+		assertSingleBookmarkLine(api, filePath, emptyLastLine);
 	});
 
 	test("pressing Enter on empty last line does not duplicate bookmark", async () => {
@@ -260,20 +299,12 @@ suite("Branch Bookmarks Integration", () => {
 		const emptyLastLine = editor.document.lineCount - 1;
 
 		assert.strictEqual(editor.document.lineAt(emptyLastLine).text, "");
-		editor.selection = new vscode.Selection(
-			emptyLastLine,
-			0,
-			emptyLastLine,
-			0,
-		);
-		await vscode.commands.executeCommand("bookmark.toggle");
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, emptyLastLine);
 
 		await vscode.commands.executeCommand("type", { text: "\n" });
 		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
+		assertBookmarkCount(api, filePath, 1);
 	});
 
 	test("line tracking is suppressed during branch transition", async () => {
@@ -285,18 +316,14 @@ suite("Branch Bookmarks Integration", () => {
 		const filePath = editor.document.uri.fsPath;
 		const bookmarkedLine = 12;
 
-		await addBookmarkAtLine(editor, bookmarkedLine);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, bookmarkedLine);
 
 		api.beginBranchTransitionForTest(300);
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.insert(new vscode.Position(0, 0), "shift-1\nshift-2\n");
 		});
-		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine);
+		assertSingleBookmarkLine(api, filePath, bookmarkedLine);
 		api.clearBranchTransitionForTest();
 	});
 
@@ -309,8 +336,7 @@ suite("Branch Bookmarks Integration", () => {
 		const filePath = editor.document.uri.fsPath;
 		const bookmarkedLine = 10;
 
-		await addBookmarkAtLine(editor, bookmarkedLine);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, bookmarkedLine);
 
 		await vscode.workspace
 			.getConfiguration("bookmark")
@@ -321,26 +347,18 @@ suite("Branch Bookmarks Integration", () => {
 			);
 
 		api.beginBranchTransitionForTest();
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.insert(new vscode.Position(0, 0), "suppressed-shift\n");
 		});
-		await api.whenIdle();
 
-		let bookmarks = api
-			.getBookmarkStore()
-			.getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine);
+		assertSingleBookmarkLine(api, filePath, bookmarkedLine);
 
 		await sleep(180);
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.insert(new vscode.Position(0, 0), "tracked-shift\n");
 		});
-		await api.whenIdle();
 
-		bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine + 1);
+		assertSingleBookmarkLine(api, filePath, bookmarkedLine + 1);
 		api.clearBranchTransitionForTest();
 	});
 
@@ -349,38 +367,30 @@ suite("Branch Bookmarks Integration", () => {
 		const editor = await openFixtureEditor("delete-range-test.ts", buildLines(35));
 		const filePath = editor.document.uri.fsPath;
 
-		await addBookmarkAtLine(editor, 10);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, 10);
 
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.delete(new vscode.Range(8, 0, 12, 0));
 		});
-		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 0);
+		assertBookmarkCount(api, filePath, 0);
 	});
 
 	test("replace edit with net line delta shifts bookmarks below changed range", async () => {
 		const api = await getApi();
-		const editor = await openFixtureEditor("replace-delta-test.ts", buildLines(40));
-		const filePath = editor.document.uri.fsPath;
-		const originalLine = 18;
-
-		await addBookmarkAtLine(editor, originalLine);
-		await api.whenIdle();
-
-		await editor.edit((builder) => {
-			builder.replace(
-				new vscode.Range(5, 0, 8, 0),
-				"r-1\nr-2\nr-3\nr-4\n",
-			);
-		});
-		await api.whenIdle();
-
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, originalLine + 1);
+		await expectSingleBookmarkLineAfterEditorEdit(
+			api,
+			"replace-delta-test.ts",
+			buildLines(40),
+			18,
+			19,
+			(builder) => {
+				builder.replace(
+					new vscode.Range(5, 0, 8, 0),
+					"r-1\nr-2\nr-3\nr-4\n",
+				);
+			},
+		);
 	});
 
 	test("bookmark is preserved after format-like full-document replacement", async () => {
@@ -403,19 +413,15 @@ suite("Branch Bookmarks Integration", () => {
 		const filePath = editor.document.uri.fsPath;
 		const bookmarkedLine = 3;
 
-		await addBookmarkAtLine(editor, bookmarkedLine);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, bookmarkedLine);
 
 		const lastLine = editor.document.lineCount - 1;
 		const lastChar = editor.document.lineAt(lastLine).text.length;
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.replace(new vscode.Range(0, 0, lastLine, lastChar), formatted);
 		});
-		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, bookmarkedLine);
+		assertSingleBookmarkLine(api, filePath, bookmarkedLine);
 	});
 
 	test("bookmark survives when formatting removes a blank line above it", async () => {
@@ -431,18 +437,14 @@ suite("Branch Bookmarks Integration", () => {
 		const filePath = editor.document.uri.fsPath;
 		const bookmarkedLine = 2;
 
-		await addBookmarkAtLine(editor, bookmarkedLine);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, bookmarkedLine);
 
 		// Simulates formatter removing the blank line (line 2 in 1-based indexing).
-		await editor.edit((builder) => {
+		await applyEditorEditAndWait(api, editor, (builder) => {
 			builder.delete(new vscode.Range(1, 0, 2, 0));
 		});
-		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, 1);
+		assertSingleBookmarkLine(api, filePath, 1);
 	});
 
 	test("multiple workspace edits in one apply shift bookmark cumulatively", async () => {
@@ -451,8 +453,7 @@ suite("Branch Bookmarks Integration", () => {
 		const filePath = editor.document.uri.fsPath;
 		const originalLine = 25;
 
-		await addBookmarkAtLine(editor, originalLine);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, originalLine);
 
 		const edit = new vscode.WorkspaceEdit();
 		edit.insert(editor.document.uri, new vscode.Position(3, 0), "first\n");
@@ -460,9 +461,7 @@ suite("Branch Bookmarks Integration", () => {
 		await vscode.workspace.applyEdit(edit);
 		await api.whenIdle();
 
-		const bookmarks = api.getBookmarkStore().getBookmarksForFileAllBranches(filePath);
-		assert.strictEqual(bookmarks.length, 1);
-		assert.strictEqual(bookmarks[0].lineNumber, originalLine + 2);
+		assertSingleBookmarkLine(api, filePath, originalLine + 2);
 	});
 
 	test("rename updates bookmark file path", async () => {
@@ -475,8 +474,7 @@ suite("Branch Bookmarks Integration", () => {
 		const originalPath = originalUri.fsPath;
 		const renamedPath = renamedUri.fsPath;
 
-		await addBookmarkAtLine(editor, 4);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, 4);
 
 		const renameEdit = new vscode.WorkspaceEdit();
 		renameEdit.renameFile(originalUri, renamedUri, {
@@ -489,9 +487,7 @@ suite("Branch Bookmarks Integration", () => {
 
 		const store = api.getBookmarkStore();
 		assert.strictEqual(store.getBookmarksForFileAllBranches(originalPath).length, 0);
-		const renamedBookmarks = store.getBookmarksForFileAllBranches(renamedPath);
-		assert.strictEqual(renamedBookmarks.length, 1);
-		assert.strictEqual(renamedBookmarks[0].lineNumber, 4);
+		assertSingleBookmarkLine(api, renamedPath, 4);
 	});
 
 	test("updateFilePath merges into existing destination key", async () => {
@@ -540,8 +536,7 @@ suite("Branch Bookmarks Integration", () => {
 			"current-branch-only-view.ts",
 			buildLines(12, "cur"),
 		);
-		await addBookmarkAtLine(editorCurrent, 1);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editorCurrent, 1);
 
 		const editorOther = await openFixtureEditor(
 			"other-branch-hidden.ts",
@@ -550,8 +545,7 @@ suite("Branch Bookmarks Integration", () => {
 		const currentPath = editorCurrent.document.uri.fsPath;
 		const otherPath = editorOther.document.uri.fsPath;
 
-		const currentBranchBookmark =
-			store.getBookmarksForFileAllBranches(currentPath)[0];
+		const currentBranchBookmark = getBookmarksForFile(api, currentPath)[0];
 		assert.ok(currentBranchBookmark, "current branch bookmark should exist");
 		const currentBranch = currentBranchBookmark.branchName;
 		const otherBranch = `${currentBranch}-other`;
@@ -586,8 +580,7 @@ suite("Branch Bookmarks Integration", () => {
 			buildLines(6),
 		);
 
-		await addBookmarkAtLine(editor, 2);
-		await api.whenIdle();
+		await addBookmarkAtLineAndWait(api, editor, 2);
 
 		const rootItems = (await provider.getChildren()) as vscode.TreeItem[];
 		const target = rootItems.find(
